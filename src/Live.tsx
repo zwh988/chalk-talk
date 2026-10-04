@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop} from './db';
 import {derive} from './engine';
+import {sync} from './sync';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],SP=['Controlled','Medium','Power'],ONE=['Pocketed','High of side','Low of side','Other'];
 const srt=(a:number[])=>[...a].sort((x,y)=>x-y);
@@ -10,22 +11,28 @@ const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'c
 
 export default function Live({session,name,end}:any){
   const pl:string[]=session.d.players,sid=session.id;
-  const evs=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del&&r.d.s===sid).sortBy('u'),[sid])||[];
+  const evs=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del&&r.d.s===sid).toArray().then(a=>a.sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u))),[sid])||[];
+  const dirty=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])??0;
+  const [ce,setCe]=useState(false),[msg,setMsg]=useState('');
   const st=derive(pl,evs);
   const other=(p:string)=>pl[1-pl.indexOf(p)];
   const last=[...evs].reverse().find(e=>e.type==='break'&&!e.d.skip)?.d;
   const k=evs.length;
-  return <><div className="hdr"><h1>Rack {st.rack}</h1><b>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}</b></div>
+  const safeOk=(i:number)=>{const e=evs[i].d;if(e.safeOk!=null)return e.safeOk;const nx=evs.slice(i+1).find(x=>x.type==='visit'&&x.d.rack===e.rack);return nx?['None','Hard'].includes(nx.d.open):null};
+  const doEnd=async(withSync:boolean)=>{try{if(withSync)await sync(setMsg);await end();if(withSync)await sync(()=>{}).catch(()=>{})}catch(e:any){setMsg(e.message)}};
+  return <><div className="row" style={{marginBottom:10}}><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button><button className="ghost" onClick={()=>dirty?setCe(true):end()}>End session</button>{dirty>0&&<span className="n">{dirty} unsynced</span>}</div>
+    {ce&&<div className="card"><b>{dirty} change{dirty===1?'':'s'} not synced to GitHub.</b><div className="row" style={{marginTop:8}}><button className="chip" onClick={()=>doEnd(true)}>Sync and end</button><button className="chip" onClick={()=>doEnd(false)}>End anyway</button><button className="chip" onClick={()=>setCe(false)}>Cancel</button></div><div className="n">{msg}</div></div>}
+    <div className="hdr"><h1>Rack {st.rack}</h1><b>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}</b></div>
     {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={name} other={other}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={name} other={other}/>}
-    <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack;return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div>
-    <div className="row"><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button><button className="ghost" onClick={end}>End session</button></div></>;
+    <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
+      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<button className="link" style={{marginLeft:6}} onClick={()=>save('visit',{...e.d,safeOk:!ok},e.id)}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</button>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
 }
 function line(e:any,name:(id:string)=>string){
   const d=e.d;
   if(e.type==='break')return d.skip?'Break not logged':`Break (${name(d.by)}) · ${Z[d.z]} · ${d.ct!=null?d.ct+'/8':C[d.cut]} ${d.side?'R':'L'} · ${SP[d.spd]} · 1 ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()} · ${d.drops.length} dropper${d.drops.length===1?'':'s'}${d.scratch?' · scratch':''}${d.nine?' · golden break':''}${d.rating?' · '+d.rating:''}`;
-  const n=['Safe played','Escape hit'].includes(d.res)?'':` · ${d.potted.length} ball${d.potted.length===1?'':'s'}`;
+  const n=d.potted.length===0&&['Safe played','Escape hit'].includes(d.res)?'':` · ${d.potted.length} ball${d.potted.length===1?'':'s'}`;
   const t=d.push?'Push out':d.won?(d.runout?'Won rack · run out':'Won rack · 9 off a combo'):d.res==='Missed'?`Missed the ${d.low}`:d.res;
-  return `${name(d.by)} ${d.rating?`[${d.rating}] `:''}· ${t}${n}${d.cause?' · '+d.cause:''}${d.fl.length?` · fluke ×${d.fl.length}`:''}${d.fg?` · ⚑${d.fg}`:''}`;
+  return `${name(d.by)} ${d.open?`[${d.open==='None'?'No shot':d.open}${d.board==='Problem'?' · problem '+(d.prob?.join(',')||'?'):''}] `:d.rating?`[${d.rating}] `:''}· ${t}${n}${d.cause?' · '+d.cause:''}${d.fl.length?` · fluke ×${d.fl.length}`:''}${d.fg?` · ⚑${d.fg}`:''}`;
 }
 const POS=[60,90,120,150,180,210,240];
 function Kitchen({z,set}:any){
@@ -41,12 +48,11 @@ function Kitchen({z,set}:any){
     <text x="150" y="114" textAnchor="middle" fontSize="8" fill="#9fd0e6">head rail</text></svg>;
 }
 const ctLabel=(ct:number)=>ct===4?'half ball':ct<4?'thinner than half':'thicker than half';
-function Contact({side,ct,set}:any){
-  const R=48,cx=120,cy=48,p=1-ct/8,s=side?1:-1,pt=(q:number,sg:number,k:number)=>[cx+sg*k*R*q,cy+k*R*Math.sqrt(1-q*q)];
+function Contact({side,cf,set}:any){
+  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,pt=(q:number,sg:number,k:number)=>[cx+sg*k*R*q,cy+k*R*Math.sqrt(1-q*q)];
   const [gx,gy]=pt(p,s,2),[dx,dy]=pt(p,s,1);
-  return <svg viewBox="0 0 240 170" style={{width:'100%',maxWidth:320,display:'block',margin:'auto'}} onClick={e=>{
-      const r=e.currentTarget.getBoundingClientRect(),u=Math.max(-1,Math.min(1,((e.clientX-r.left)/r.width*240-cx)/R));
-      set(u<0?0:1,Math.max(1,Math.min(7,Math.round((1-Math.abs(u))*8))))}}>
+  const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),u=Math.max(-1,Math.min(1,((e.clientX-r.left)/r.width*240-cx)/R));set(u<0?0:1,Math.max(.06,Math.min(.94,1-Math.abs(u))))};
+  return <svg viewBox="0 0 240 170" style={{width:'100%',maxWidth:320,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
     <circle cx={cx} cy={cy} r={R} fill={BC[1]}/><text x={cx} y={cy+7} textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff" opacity=".6">1</text>
     {[1,2,3,4,5,6,7].flatMap(i=>[-1,1].map(sg=>{const [x,y]=pt(i/8,sg,1);return <circle key={i+'_'+sg} cx={x} cy={y} r={i===4?4:2.5} fill="#fff" opacity={i===4?.95:.55}/>}))}
     <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".8" stroke="#888" strokeDasharray="4 3"/>
@@ -54,16 +60,16 @@ function Contact({side,ct,set}:any){
 }
 function BreakForm({st,sid,last,name,other}:any){
   const [by,setBy]=useState(st.breaker);const [ask,setAsk]=useState(false);
-  const [z,setZ]=useState(last?.z??1),[ct,setCt]=useState(last?.ct??4),[side,setSide]=useState(last?.side??0),[spd,setSpd]=useState(last?.spd??1);
+  const [z,setZ]=useState(last?.z??1),[cf,setCf]=useState<number>(last?.cf??(last?.ct??4)/8),[side,setSide]=useState(last?.side??0),[spd,setSpd]=useState(last?.spd??1);
   const [tip,setTip]=useState<number[]>(last?.tip??[100,128]);
   const [one,setOne]=useState<number|null>(null),[drops,setDrops]=useState<number[]>([]),[scratch,setSc]=useState(false),[nine,setNine]=useState(false);
-  const o=other(by);
+  const o=other(by);const ct=Math.max(1,Math.min(7,Math.round(cf*8)));
   const log=()=>{const cont=!scratch&&!nine&&(one===0||drops.length>0);
-    save('break',{s:sid,rack:st.rack,by,z,ct,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
-  const skip=(first:string)=>save('break',{s:sid,rack:st.rack,by,skip:true,drops:[],one:null,next:first});
+    save('break',{t:Date.now(),s:sid,rack:st.rack,by,z,ct,cf,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
+  const skip=(first:string)=>save('break',{t:Date.now(),s:sid,rack:st.rack,by,skip:true,drops:[],one:null,next:first});
   return <div className="card"><div className="hdr"><b>{name(by)} breaks</b><button className="link" onClick={()=>setBy(o)}>Change breaker</button></div>
     <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
-    <div className="lbl">Contact on 1-ball · tap where the cue ball hit</div><Contact side={side} ct={ct} set={(sd:number,c:number)=>{setSide(sd);setCt(c)}}/>
+    <div className="lbl">Contact on 1-ball · drag the cue ball around the 1-ball</div><Contact side={side} cf={cf} set={(sd:number,c:number)=>{setSide(sd);setCf(c)}}/>
     <div className="n" style={{textAlign:'center'}}>{side?'Right':'Left'} · {ct}/8 ball · {ctLabel(ct)}</div>
     <div className="lbl">Speed</div><Chips items={SP} cur={spd} set={setSpd}/>
     <div className="lbl">Cue ball tip · {tipLabel(tip)}</div>
@@ -78,40 +84,43 @@ function BreakForm({st,sid,last,name,other}:any){
     {ask&&<div><div className="lbl">Who shoots first?</div><div className="row">{[by,o].map(p=><button key={p} className="chip" onClick={()=>skip(p)}>{name(p)}</button>)}</div></div>}</div>;
 }
 function VisitForm({st,sid,name,other}:any){
-  const [rating,setRating]=useState(st.prefill||''),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
+  const [open,setOpen]=useState(''),[board,setBoard]=useState('Clear'),[prob,setProb]=useState<number[]>([]),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
   const [cause,setCause]=useState(''),[fl,setFl]=useState<number[]>([]),[fg,setFg]=useState(0),[fp,setFp]=useState(false),[ask,setAsk]=useState(false);
   const by=st.shooter,o=other(by),push=res==='Push out';
-  const outsFor=(r:string)=>{const p=st.first?['Push out']:[];return !r?p:r==='D'?['Safe played','Escape hit','Foul','Pocketed anyway',...p]:['Won rack','Missed','Foul',...p]};
-  const auto=(n:number[],rs:string,r:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(r&&n.length?(r==='D'?'Pocketed anyway':'Missed'):'');
+  const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Safe played','Escape hit','Foul','Pocketed anyway',...p]:['Won rack','Missed','Safe played','Foul',...p]};
+  const auto=(n:number[],rs:string,op:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(op&&n.length?(op==='None'?'Pocketed anyway':'Missed'):'');
   const rem=st.table.filter((x:number)=>!P.includes(x)),won=P.includes(9);
   const sorted=srt(st.table);let j=0;while(j<sorted.length&&P.includes(sorted[j]))j++;
   const oo=sorted.slice(j).filter(x=>P.includes(x));
   const tap=(i:number)=>{
-    if(!st.table.includes(i)||['Safe played','Escape hit'].includes(res)||(push&&i===9))return;
+    if(!st.table.includes(i)||res==='Escape hit'||(push&&i===9))return;
     let n=[...P];
     if(n.includes(i))n=n.filter(x=>x!==i);
     else{const m=n.length?Math.max(...n):0;if(i>m)st.table.forEach((x:number)=>{if(x>m&&x<=i)n.push(x)});else n.push(i)}
-    setP(n);setRes(auto(n,res,rating));
+    setP(n);setRes(auto(n,res,open));
   };
-  const pick=(r:string)=>{setRes(r);if(r==='Won rack')setP([...st.table]);else if(r==='Safe played'||r==='Escape hit')setP([]);else setP(P.filter(x=>x!==9))};
-  const rate=(r:string)=>{setRating(r);const ok=res==='Won rack'||outsFor(r).includes(res);setRes(ok?auto(P,res,r):auto(P,'',r))};
+  const pick=(r:string)=>{setRes(r);if(r==='Won rack')setP([...st.table]);else if(r==='Escape hit')setP([]);else setP(P.filter(x=>x!==9))};
+  const choose=(op:string)=>{setOpen(op);const ok=res==='Won rack'||outsFor(op).includes(res);setRes(ok?auto(P,res,op):auto(P,'',op))};
   const finish=async(pass:boolean)=>{
-    const id=await save('visit',{s:sid,rack:st.rack,by,rating:push?'':rating,res:won?'Won rack':res,potted:P,low:rem[0],cause,fl,fg,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length});
-    for(let i=0;i<fg;i++)await save('flag',{s:sid,rack:st.rack,by,table:st.table,rating,visit:id});
+    const id=await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,low:rem[0],cause,fl,fg,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length});
+    for(let i=0;i<fg;i++)await save('flag',{s:sid,rack:st.rack,by,table:st.table,open,visit:id});
   };
-  const list=outsFor(rating);
+  const list=outsFor(open);
   return <div className="card"><div className="hdr"><b>{name(by)}{st.first?' · first shot':' at the table'}</b></div>
     <div className="strip">{[1,2,3,4,5,6,7,8,9].map(i=>{const on=st.table.includes(i);return <button key={i} disabled={!on||(push&&i===9)} className={'b'+(!on?' gone':P.includes(i)?' pot':'')+((res==='Missed'||res==='Foul')&&!won&&i===rem[0]?' now':'')+(fl.includes(i)?' fl':'')} style={{['--c' as any]:BC[i]}} onClick={()=>tap(i)}>{i}</button>})}</div>
     <div className="n">{won?`9 down · rack won${rem.length?` (${rem.join(', ')} still up)`:' · run out'}`:P.length?`Potted ${srt(P).join(', ')}${oo.length?` · out of order: ${oo.join(', ')}`:''}`:'Tap the last ball you potted. Tap a potted ball to take it back.'}</div>
-    <div className="lbl">Position when you stepped up</div>
-    <div className="row">{['A','B','C','D'].map(r=><button key={r} className={'chip'+(rating===r?' on':'')} onClick={()=>rate(r)}>{r}<small>{{A:'Clean',B:'Problem ball',C:'Scrappy',D:'No shot'}[r]}</small></button>)}</div>
+    <div className="lbl">Opening shot</div>
+    <div className="row">{[['Easy','Clear shot'],['Hard','Tough shot'],['None','No shot']].map(([v,t])=><button key={v} className={'chip'+(open===v?' on':'')} onClick={()=>choose(v)}>{v==='None'?'No shot':v}<small>{t}</small></button>)}</div>
+    {open&&<><div className="lbl">Board state</div>
+      <div className="row">{['Clear','Problem'].map(b=><button key={b} className={'chip'+(board===b?' on':'')} onClick={()=>setBoard(b)}>{b}</button>)}</div>
+      {board==='Problem'&&<><div className="lbl">Which ball(s) are the problem?</div><div className="row">{st.table.map((i:number)=><button key={i} className={'chip'+(prob.includes(i)?' on':'')} style={{minWidth:40,padding:'10px 4px'}} onClick={()=>setProb(prob.includes(i)?prob.filter(x=>x!==i):[...prob,i])}>{i}</button>)}</div></>}</>}
     <div className="lbl">What happened</div>
-    <div className="row">{list.length?list.map(x=><button key={x} className={'chip'+(res===x?' on':'')} onClick={()=>pick(x)}>{x}{x==='Escape hit'&&<small>kick or jump</small>}</button>):<span className="n">Pick a rating first.</span>}</div>
-    {['Missed','Foul'].includes(res)&&rating!=='D'&&<><div className="lbl">Cause (optional)</div><div className="row">{['Pot','Position','Decision','Other'].map(c=><button key={c} className={'chip'+(cause===c?' on':'')} onClick={()=>setCause(cause===c?'':c)}>{c}</button>)}</div></>}
+    <div className="row">{list.length?list.map(x=><button key={x} className={'chip'+(res===x?' on':'')} onClick={()=>pick(x)}>{x}{x==='Escape hit'&&<small>kick or jump</small>}</button>):<span className="n">Pick the opening shot first.</span>}</div>
+    {['Missed','Foul'].includes(res)&&open!=='None'&&<><div className="lbl">Cause (optional)</div><div className="row">{['Pot','Position','Decision','Other'].map(c=><button key={c} className={'chip'+(cause===c?' on':'')} onClick={()=>setCause(cause===c?'':c)}>{c}</button>)}</div></>}
     <div className="lbl">Optional</div>
-    <div className="row"><button className="chip opt" onClick={()=>{setFg(fg+1)}}>⚑ Flag shot</button><button className="chip opt" onClick={()=>setFp(true)}>✦ Fluke</button></div>
+    <div className="row"><button className="chip opt" onClick={()=>setFg(fg+1)}>⚑ Flag shot</button><button className="chip opt" onClick={()=>setFp(true)}>✦ Fluke</button></div>
     {fp&&<><div className="lbl">Which ball fluked?</div><div className="row">{[...st.table.map(String),'Skip'].map(b=><button key={b} className="chip" style={{minWidth:40}} onClick={()=>{setFl([...fl,+b||0]);setFp(false)}}>{b}</button>)}</div></>}
     <div className="tags">{fl.map((f,i)=><span key={i} className="tag f">✦ Fluke{f?' · '+f:''}<button className="x" onClick={()=>setFl(fl.filter((_,q)=>q!==i))}>✕</button></span>)}{fg>0&&<span className="tag g">⚑ Flags: {fg}<button className="x" onClick={()=>setFg(fg-1)}>✕</button></span>}</div>
-    <button className="go" disabled={!res||(!rating&&!push)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
+    <button className="go" disabled={!res||(!open&&!push)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
     {ask&&<div className="card"><b>Push out played</b><div className="n">Potted balls stay down. The 9 is respotted.</div><div className="row"><button className="chip" onClick={()=>finish(false)}>{name(o)} shoots it</button><button className="chip" onClick={()=>finish(true)}>Passes it back</button></div></div>}</div>;
 }

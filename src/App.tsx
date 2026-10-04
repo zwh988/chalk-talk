@@ -2,17 +2,26 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import Venues from './Venues';
+import Shots from './Shots';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
-type Tab='session'|'history'|'players'|'venues'|'sync'|'settings';
+type Tab='play'|'review'|'shots'|'more';
+const LABEL:Record<Tab,string>={play:'Play',review:'Review',shots:'Shots',more:'More'};
 export default function App(){
-  const [tab,setTab]=useState<Tab>('session');
-  return <div className="app"><main>{tab==='session'?<Session/>:tab==='history'?<History/>:tab==='players'?<Players/>:tab==='venues'?<Venues/>:tab==='settings'?<Settings/>:<Sync/>}</main>
-    <nav><b className="brand">Chalk Talk</b>{(['session','history','players','venues','sync','settings'] as Tab[]).map(t=>
-      <button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>)}</nav></div>;
+  const [tab,setTab]=useState<Tab>('play');
+  return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<Shots/>:<More/>}</main>
+    <nav><b className="brand">Chalk Talk</b>{(Object.keys(LABEL) as Tab[]).map(t=><button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{LABEL[t]}</button>)}</nav></div>;
+}
+function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
+function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Sessions'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
+  {v==='sessions'?<History/>:<div className="card"><b>Coming soon</b><div className="n">Run-out rates, balls run, and break tables will appear here once the stats build lands.</div></div>}</>}
+function More(){
+  const [v,setV]=useState('');const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
+  if(v)return <><button className="link" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
+  return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}</span><span>›</span></button>)}</>;
 }
 function Players(){
   const ps=useLiveQuery(()=>ofType('player'),[])||[];

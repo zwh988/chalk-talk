@@ -3,6 +3,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop} from './db';
 import {derive} from './engine';
 import {sync} from './sync';
+import {Tip} from './Shots';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],SP=['Controlled','Medium','Power'],ONE=['Pocketed','High of side','Low of side','Other'];
 const srt=(a:number[])=>[...a].sort((x,y)=>x-y);
@@ -82,8 +83,7 @@ function BreakForm({st,sid,last,name,other}:any){
     <div className="n" style={{textAlign:'center'}}>{ct===8?'Straight on · no cut':`${side?'Right':'Left'} · ${ct}/8 ball · ${ctLabel(ct)}`}</div>
     <div className="lbl">Speed</div><Chips items={SP} cur={spd} set={setSpd}/>
     <div className="lbl">Cue ball tip · {tipLabel(tip)}</div>
-    <svg viewBox="0 0 200 200" style={{width:180,display:'block',margin:'auto'}} onClick={e=>{const r=e.currentTarget.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width*200-100,dy=(e.clientY-r.top)/r.height*200-100,d=Math.hypot(dx,dy),f=d>78?78/d:1;setTip([100+dx*f,100+dy*f])}}>
-      <circle cx="100" cy="100" r="92" fill="#f5f2e8" stroke="#bbb" strokeWidth="2"/><line x1="100" y1="8" x2="100" y2="192" stroke="#ccc"/><line x1="8" y1="100" x2="192" y2="100" stroke="#ccc"/><circle cx={tip[0]} cy={tip[1]} r="9" fill="#c4513d"/></svg>
+    <Tip tip={tip} set={setTip}/>
     <div className="lbl">1-Ball direction</div><Chips items={ONE} cur={one} set={setOne}/>
     <div className="lbl">Other balls that dropped (tap which)</div>
     <div className="strip">{[2,3,4,5,6,7,8].map(i=><button key={i} className={'b'+(drops.includes(i)?' pot':'')} style={{['--c' as any]:BC[i]}} onClick={()=>setDrops(drops.includes(i)?drops.filter(x=>x!==i):[...drops,i])}>{i}</button>)}</div>

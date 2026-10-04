@@ -7,7 +7,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans
 main{flex:1;overflow:auto;width:100%;max-width:760px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 14px 14px}
 nav{display:flex;background:var(--nav);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
 nav .brand{display:none}
-nav button{flex:1;background:none;border:0;color:#b9d3d4;font:600 12px inherit;padding:12px 1px;border-radius:10px}
+nav button{flex:1;background:none;border:0;color:#b9d3d4;font:600 14px inherit;padding:12px 4px;border-radius:10px}
 nav button.on{background:var(--cloth);color:#fff}
 h1{font-size:22px;margin:0 0 12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
@@ -35,3 +35,5 @@ input,select{display:block;width:100%;margin-top:4px;padding:12px;border:1px sol
 .tag.f{background:#e5d5fa;color:#4b2a7a}.tag.g{background:#fbe6c2;color:#5a3a00}.x{background:none;border:0;color:inherit;font:800 14px inherit;padding:0 6px}
 .rh{font-size:12px;color:var(--mute);margin:14px 0 2px;font-weight:800}.log .v{padding:7px 0;border-top:1px solid var(--line);font-size:13px}
 .hist{display:block;width:100%;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit}
+.nav-row{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin-bottom:10px;color:var(--ink);font:600 15px inherit;text-align:left}
+.shotcard{display:flex;gap:12px;align-items:center;text-align:left;width:100%;color:inherit;font:inherit}

@@ -25,37 +25,46 @@ export default function Live({session,name,end}:any){
     <div className="hdr"><h1>Rack {st.rack}</h1><b>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}</b></div>
     {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={name} other={other}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={name} other={other}/>}
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
-      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<button className="link" style={{marginLeft:6}} onClick={()=>save('visit',{...e.d,safeOk:!ok},e.id)}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</button>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
+      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
 }
 function line(e:any,name:(id:string)=>string){
-  const d=e.d;
-  if(e.type==='break')return d.skip?'Break not logged':`Break (${name(d.by)}) · ${Z[d.z]} · ${d.ct!=null?d.ct+'/8':C[d.cut]} ${d.side?'R':'L'} · ${SP[d.spd]} · 1 ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()} · ${d.drops.length} dropper${d.drops.length===1?'':'s'}${d.scratch?' · scratch':''}${d.nine?' · golden break':''}${d.rating?' · '+d.rating:''}`;
-  const n=d.potted.length===0&&['Safe played','Escape hit'].includes(d.res)?'':` · ${d.potted.length} ball${d.potted.length===1?'':'s'}`;
-  const t=d.push?'Push out':d.won?(d.runout?'Won rack · run out':'Won rack · 9 off a combo'):d.res==='Missed'?`Missed the ${d.low}`:d.res;
-  return `${name(d.by)} ${d.open?`[${d.open==='None'?'No shot':d.open}${d.board==='Problem'?' · problem '+(d.prob?.join(',')||'?'):''}] `:d.rating?`[${d.rating}] `:''}· ${t}${n}${d.cause?' · '+d.cause:''}${d.fl.length?` · fluke ×${d.fl.length}`:''}${d.fg?` · ⚑${d.fg}`:''}`;
+  const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
+  if(e.type==='break'){
+    if(d.skip)p.push('Break not logged');
+    else p.push('Break',Z[d.z],d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,SP[d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
+    return p.join(' · ');
+  }
+  const open=d.open?(d.open==='None'?'No shot':d.open):d.rating||'';
+  if(open)p.push(open);
+  if(d.board==='Problem')p.push('problem '+(d.prob?.join(',')||'?'));
+  p.push(d.push?'Push out':d.won?(d.runout?'Won rack · run out':'Won rack · 9 off a combo'):d.res==='Missed'?`Missed the ${d.low}`:d.res);
+  if(!(d.potted.length===0&&['Safe played','Escape hit'].includes(d.res)))p.push(`${d.potted.length} ball${d.potted.length===1?'':'s'}`);
+  if(d.cause)p.push(d.cause);if(d.fl.length)p.push(`fluke ×${d.fl.length}`);if(d.fg)p.push(`⚑${d.fg}`);
+  return p.join(' · ');
 }
-const POS=[60,90,120,150,180,210,240];
+const KX=[0,1,2,3,4,5,6].map(i=>111.3+i*12.9);
 function Kitchen({z,set}:any){
-  return <svg viewBox="0 0 300 120" style={{width:'100%',maxWidth:420,display:'block',margin:'auto'}}>
-    <rect width="300" height="120" rx="8" fill="#0e4144"/><rect x="14" width="272" height="102" fill="#14575a"/>
-    <circle cx="14" cy="102" r="12" fill="#06191a"/><circle cx="286" cy="102" r="12" fill="#06191a"/>
-    <line x1="14" y1="12" x2="286" y2="12" stroke="#9fd0e6" strokeDasharray="5 4"/>
+  const pick=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*300;set(Math.max(0,Math.min(6,Math.round((x-111.3)/12.9))))};
+  return <svg viewBox="0 0 300 175" style={{width:'100%',maxWidth:440,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);pick(e)}} onPointerMove={e=>{if(e.buttons)pick(e)}}>
+    <rect width="300" height="175" rx="8" fill="#0e4144"/><rect x="16" y="14" width="268" height="134" fill="#14575a"/>
+    <circle cx="16" cy="148" r="11" fill="#06191a"/><circle cx="284" cy="148" r="11" fill="#06191a"/>
+    {[83,150,217].map(x=><circle key={x} cx={x} cy="156" r="2.5" fill="#e8d9a8"/>)}
+    <line x1="16" y1="14" x2="284" y2="14" stroke="#9fd0e6" strokeDasharray="5 4"/>
     <text x="150" y="9" textAnchor="middle" fontSize="8" fill="#9fd0e6">head string · rack is up this way ↑</text>
-    <rect x="45" y="30" width="210" height="64" rx="6" fill="none" stroke="#e8a33d" strokeWidth="2" strokeDasharray="6 3"/>
-    {POS.map((x,i)=><g key={i} onClick={()=>set(i)} style={{cursor:'pointer'}}><rect x={x-15} y="30" width="30" height="64" fill="transparent"/>
-      <circle cx={x} cy="60" r={i===z?10:3} fill={i===z?'#f5f2e8':'#9fd0e6'} stroke={i===z?'#e8a33d':'none'} strokeWidth="2"/>
-      <text x={x} y="88" textAnchor="middle" fontSize="9" fill={i===z?'#fff':'#9fd0e6'}>{Z[i]}</text></g>)}
-    <text x="150" y="114" textAnchor="middle" fontSize="8" fill="#9fd0e6">head rail</text></svg>;
+    <rect x="105.3" y="14" width="89.4" height="134" fill="rgba(232,163,61,.12)" stroke="#e8a33d" strokeWidth="2" strokeDasharray="6 3"/>
+    {KX.map((x,i)=><circle key={i} cx={x} cy="128" r={i===z?6:2.2} fill={i===z?'#f5f2e8':'#9fd0e6'} stroke={i===z?'#e8a33d':'none'} strokeWidth="2"/>)}
+    <text x="150" y="171" textAnchor="middle" fontSize="9" fill="#9fd0e6">head rail · {Z[z]}</text></svg>;
 }
 const ctLabel=(ct:number)=>ct===4?'half ball':ct<4?'thinner than half':'thicker than half';
 function Contact({side,cf,set}:any){
-  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,pt=(q:number,sg:number,k:number)=>[cx+sg*k*R*q,cy+k*R*Math.sqrt(1-q*q)];
-  const [gx,gy]=pt(p,s,2),[dx,dy]=pt(p,s,1);
-  const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),u=Math.max(-1,Math.min(1,((e.clientX-r.left)/r.width*240-cx)/R));set(u<0?0:1,Math.max(.06,Math.min(.94,1-Math.abs(u))))};
-  return <svg viewBox="0 0 240 170" style={{width:'100%',maxWidth:320,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
+  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,gx=cx+s*2*R*p,gy=cy+2*R*Math.sqrt(1-p*p),dx=cx+s*R*p,dy=cy+R*Math.sqrt(1-p*p);
+  const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*240-cx,q=Math.min(1,Math.abs(x)/(2*R));set(x<0?0:1,Math.max(1,Math.min(8,Math.round((1-q)*8)))/8)};
+  const lines=[1,2,3,4,5,6,7,8].flatMap(k=>(k===8?[0]:[-1,1]).map(sg=>({k,x:cx+sg*2*R*(1-k/8)})));
+  return <svg viewBox="0 0 240 172" style={{width:'100%',maxWidth:320,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
+    {lines.map(l=><g key={l.k+'_'+l.x}><line x1={l.x} y1={cy} x2={l.x} y2="160" stroke={l.k===4?'#e8a33d':'#9fd0e6'} strokeWidth={l.k===4?2:1} strokeDasharray={l.k===4?'6 3':'2 3'} opacity={l.k===4?1:.55}/>
+      {l.k===4&&<text x={l.x} y="171" textAnchor="middle" fontSize="9" fill="#e8a33d">½</text>}</g>)}
     <circle cx={cx} cy={cy} r={R} fill={BC[1]}/><text x={cx} y={cy+7} textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff" opacity=".6">1</text>
-    {[1,2,3,4,5,6,7].flatMap(i=>[-1,1].map(sg=>{const [x,y]=pt(i/8,sg,1);return <circle key={i+'_'+sg} cx={x} cy={y} r={i===4?4:2.5} fill="#fff" opacity={i===4?.95:.55}/>}))}
-    <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".8" stroke="#888" strokeDasharray="4 3"/>
+    <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".85" stroke="#888" strokeDasharray="4 3"/>
     <circle cx={dx} cy={dy} r="6" fill="#c4513d" stroke="#fff" strokeWidth="2"/></svg>;
 }
 function BreakForm({st,sid,last,name,other}:any){
@@ -63,14 +72,14 @@ function BreakForm({st,sid,last,name,other}:any){
   const [z,setZ]=useState(last?.z??1),[cf,setCf]=useState<number>(last?.cf??(last?.ct??4)/8),[side,setSide]=useState(last?.side??0),[spd,setSpd]=useState(last?.spd??1);
   const [tip,setTip]=useState<number[]>(last?.tip??[100,128]);
   const [one,setOne]=useState<number|null>(null),[drops,setDrops]=useState<number[]>([]),[scratch,setSc]=useState(false),[nine,setNine]=useState(false);
-  const o=other(by);const ct=Math.max(1,Math.min(7,Math.round(cf*8)));
+  const o=other(by);const ct=Math.max(1,Math.min(8,Math.round(cf*8)));
   const log=()=>{const cont=!scratch&&!nine&&(one===0||drops.length>0);
     save('break',{t:Date.now(),s:sid,rack:st.rack,by,z,ct,cf,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
   const skip=(first:string)=>save('break',{t:Date.now(),s:sid,rack:st.rack,by,skip:true,drops:[],one:null,next:first});
   return <div className="card"><div className="hdr"><b>{name(by)} breaks</b><button className="link" onClick={()=>setBy(o)}>Change breaker</button></div>
     <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
     <div className="lbl">Contact on 1-ball · drag the cue ball around the 1-ball</div><Contact side={side} cf={cf} set={(sd:number,c:number)=>{setSide(sd);setCf(c)}}/>
-    <div className="n" style={{textAlign:'center'}}>{side?'Right':'Left'} · {ct}/8 ball · {ctLabel(ct)}</div>
+    <div className="n" style={{textAlign:'center'}}>{ct===8?'Straight on · no cut':`${side?'Right':'Left'} · ${ct}/8 ball · ${ctLabel(ct)}`}</div>
     <div className="lbl">Speed</div><Chips items={SP} cur={spd} set={setSpd}/>
     <div className="lbl">Cue ball tip · {tipLabel(tip)}</div>
     <svg viewBox="0 0 200 200" style={{width:180,display:'block',margin:'auto'}} onClick={e=>{const r=e.currentTarget.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width*200-100,dy=(e.clientY-r.top)/r.height*200-100,d=Math.hypot(dx,dy),f=d>78?78/d:1;setTip([100+dx*f,100+dy*f])}}>
@@ -78,7 +87,7 @@ function BreakForm({st,sid,last,name,other}:any){
     <div className="lbl">1-Ball direction</div><Chips items={ONE} cur={one} set={setOne}/>
     <div className="lbl">Other balls that dropped (tap which)</div>
     <div className="strip">{[2,3,4,5,6,7,8].map(i=><button key={i} className={'b'+(drops.includes(i)?' pot':'')} style={{['--c' as any]:BC[i]}} onClick={()=>setDrops(drops.includes(i)?drops.filter(x=>x!==i):[...drops,i])}>{i}</button>)}</div>
-    <div className="row"><button className={'chip'+(scratch?' on':'')} onClick={()=>setSc(!scratch)}>Scratch</button><button className={'chip'+(nine?' on':'')} onClick={()=>setNine(!nine)}>Golden break<small>9 down, rack won</small></button></div>
+    <div className="row"><button className={'chip'+(scratch?' on':'')} onClick={()=>setSc(!scratch)}>Scratch</button><button className={'chip'+(nine?' on':'')} onClick={()=>setNine(!nine)}>Golden break</button></div>
     <button className="go" onClick={log}>Log break</button>
     <button className="link" onClick={()=>setAsk(!ask)}>Skip break details</button>
     {ask&&<div><div className="lbl">Who shoots first?</div><div className="row">{[by,o].map(p=><button key={p} className="chip" onClick={()=>skip(p)}>{name(p)}</button>)}</div></div>}</div>;

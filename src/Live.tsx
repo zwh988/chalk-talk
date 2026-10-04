@@ -27,7 +27,7 @@ export default function Live({session,name,end}:any){
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
       return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
 }
-function line(e:any,name:(id:string)=>string){
+export function line(e:any,name:(id:string)=>string){
   const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
   if(e.type==='break'){
     if(d.skip)p.push('Break not logged');
@@ -52,12 +52,12 @@ function Kitchen({z,set}:any){
     <line x1="16" y1="14" x2="284" y2="14" stroke="#9fd0e6" strokeDasharray="5 4"/>
     <text x="150" y="9" textAnchor="middle" fontSize="8" fill="#9fd0e6">head string · rack is up this way ↑</text>
     <rect x="105.3" y="14" width="89.4" height="134" fill="rgba(232,163,61,.12)" stroke="#e8a33d" strokeWidth="2" strokeDasharray="6 3"/>
-    {KX.map((x,i)=><circle key={i} cx={x} cy="128" r={i===z?6:2.2} fill={i===z?'#f5f2e8':'#9fd0e6'} stroke={i===z?'#e8a33d':'none'} strokeWidth="2"/>)}
+    {KX.map((x,i)=><circle key={i} cx={x} cy="23" r={i===z?6:2.2} fill={i===z?'#f5f2e8':'#9fd0e6'} stroke={i===z?'#e8a33d':'none'} strokeWidth="2"/>)}
     <text x="150" y="171" textAnchor="middle" fontSize="9" fill="#9fd0e6">head rail · {Z[z]}</text></svg>;
 }
 const ctLabel=(ct:number)=>ct===4?'half ball':ct<4?'thinner than half':'thicker than half';
 function Contact({side,cf,set}:any){
-  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,gx=cx+s*2*R*p,gy=cy+2*R*Math.sqrt(1-p*p),dx=cx+s*R*p,dy=cy+R*Math.sqrt(1-p*p);
+  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,gx=cx+s*2*R*p,gy=cy+2*R*Math.sqrt(1-p*p);
   const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*240-cx,q=Math.min(1,Math.abs(x)/(2*R));set(x<0?0:1,Math.max(1,Math.min(8,Math.round((1-q)*8)))/8)};
   const lines=[1,2,3,4,5,6,7,8].flatMap(k=>(k===8?[0]:[-1,1]).map(sg=>({k,x:cx+sg*2*R*(1-k/8)})));
   return <svg viewBox="0 0 240 172" style={{width:'100%',maxWidth:320,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
@@ -65,7 +65,7 @@ function Contact({side,cf,set}:any){
       {l.k===4&&<text x={l.x} y="171" textAnchor="middle" fontSize="9" fill="#e8a33d">½</text>}</g>)}
     <circle cx={cx} cy={cy} r={R} fill={BC[1]}/><text x={cx} y={cy+7} textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff" opacity=".6">1</text>
     <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".85" stroke="#888" strokeDasharray="4 3"/>
-    <circle cx={dx} cy={dy} r="6" fill="#c4513d" stroke="#fff" strokeWidth="2"/></svg>;
+    <circle cx={gx} cy={gy} r="4.5" fill="#c4513d" stroke="#fff" strokeWidth="1.5"/></svg>;
 }
 function BreakForm({st,sid,last,name,other}:any){
   const [by,setBy]=useState(st.breaker);const [ask,setAsk]=useState(false);

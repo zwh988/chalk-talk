@@ -3,13 +3,14 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,ofType} from './db';
 import Live from './Live';
 import Settings from './Settings';
+import History from './History';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
-type Tab='session'|'players'|'sync'|'settings';
+type Tab='session'|'history'|'players'|'sync'|'settings';
 export default function App(){
   const [tab,setTab]=useState<Tab>('session');
-  return <div className="app"><main>{tab==='session'?<Session/>:tab==='players'?<Players/>:tab==='settings'?<Settings/>:<Sync/>}</main>
-    <nav><b className="brand">Chalk Talk</b>{(['session','players','sync','settings'] as Tab[]).map(t=>
+  return <div className="app"><main>{tab==='session'?<Session/>:tab==='history'?<History/>:tab==='players'?<Players/>:tab==='settings'?<Settings/>:<Sync/>}</main>
+    <nav><b className="brand">Chalk Talk</b>{(['session','history','players','sync','settings'] as Tab[]).map(t=>
       <button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>)}</nav></div>;
 }
 function Players(){

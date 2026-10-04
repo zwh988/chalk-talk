@@ -6,7 +6,7 @@ export const setCfg=(c:Cfg)=>localStorage.setItem('ct.cfg',JSON.stringify(c));
 const b64=(s:string)=>btoa(unescape(encodeURIComponent(s)));
 const unb64=(s:string)=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
 // One file per session (sessions/<id>.json: the session, its breaks, visits, flags) plus players.json.
-const fileOf=(r:Rec)=>r.type==='player'?'players.json':`sessions/${r.type==='session'?r.id:r.d.s}.json`;
+const fileOf=(r:Rec)=>r.type==='player'||r.type==='venue'?'players.json':`sessions/${r.type==='session'?r.id:r.d.s}.json`;
 const strip=(r:Rec)=>({id:r.id,type:r.type,u:r.u,del:r.del,d:r.d});
 export async function sync(say:(m:string)=>void){
   const c=getCfg();if(!c.repo||!c.token)throw new Error('Set up sync first (Sync tab).');

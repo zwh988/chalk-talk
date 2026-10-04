@@ -1,16 +1,17 @@
 import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
-import {db,save,ofType} from './db';
+import {db,save,drop,ofType} from './db';
+import Venues from './Venues';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
-type Tab='session'|'history'|'players'|'sync'|'settings';
+type Tab='session'|'history'|'players'|'venues'|'sync'|'settings';
 export default function App(){
   const [tab,setTab]=useState<Tab>('session');
-  return <div className="app"><main>{tab==='session'?<Session/>:tab==='history'?<History/>:tab==='players'?<Players/>:tab==='settings'?<Settings/>:<Sync/>}</main>
-    <nav><b className="brand">Chalk Talk</b>{(['session','history','players','sync','settings'] as Tab[]).map(t=>
+  return <div className="app"><main>{tab==='session'?<Session/>:tab==='history'?<History/>:tab==='players'?<Players/>:tab==='venues'?<Venues/>:tab==='settings'?<Settings/>:<Sync/>}</main>
+    <nav><b className="brand">Chalk Talk</b>{(['session','history','players','venues','sync','settings'] as Tab[]).map(t=>
       <button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>)}</nav></div>;
 }
 function Players(){
@@ -22,13 +23,14 @@ function Players(){
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
       <button className="dot" aria-label="Change colour" style={{background:p.d.color}} onClick={()=>save('player',{...p.d,color:COLORS[(COLORS.indexOf(p.d.color)+1)%COLORS.length]},p.id)}/>
       <input defaultValue={p.d.name} onBlur={e=>e.target.value.trim()&&e.target.value!==p.d.name&&save('player',{...p.d,name:e.target.value.trim()},p.id)}/>
-      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button></div>)}
+      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
     <div className="card row"><input placeholder="New player name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><button className="go sm" onClick={add}>Add</button></div></>;
 }
 function Session(){
   const all=useLiveQuery(()=>ofType('player'),[])||[];
   const ps=all.filter(p=>!p.d.archived);
   const ss=useLiveQuery(()=>ofType('session'),[])||[];
+  const vs=useLiveQuery(()=>ofType('venue'),[])||[];
   const active=ss.find(s=>!s.d.end);
   const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [tbl,setT]=useState('');
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
@@ -39,9 +41,9 @@ function Session(){
     {ps.length<2?<p className="n">Add at least two players on the Players tab first.</p>:<div className="card">
       <label>Player 1<select value={a} onChange={e=>setA(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Player 2<select value={b} onChange={e=>setB(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
-      <label>Venue<input list="v" value={venue} onChange={e=>setV(e.target.value)} placeholder="e.g. Cue & Chalk"/></label><datalist id="v">{venues.map(v=><option key={v} value={v}/>)}</datalist>
+      <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues on the Venues tab.</div>}
       <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
-      <button className="go" disabled={!ok} onClick={()=>save('session',{players:[a,b],venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
+      <button className="go" disabled={!ok} onClick={()=>save('session',{players:[a,b],venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
 }
 function Sync(){
   const [c,setC]=useState(getCfg());const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);

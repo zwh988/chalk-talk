@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,ofType} from './db';
+import Live from './Live';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
 type Tab='session'|'players'|'sync';
@@ -30,11 +31,7 @@ function Session(){
   const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [tbl,setT]=useState('');
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
   const nm=(id:string)=>all.find(p=>p.id===id)?.d.name??'?';
-  if(active)return <><h1>Session in progress</h1><div className="card">
-    <b>{nm(active.d.players[0])} vs {nm(active.d.players[1])}</b>
-    <div className="n">{active.d.venue||'No venue'}{active.d.table?` · table ${active.d.table}`:''} · started {new Date(active.d.start).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</div>
-    <p className="n">Break and visit logging arrive in the next build.</p>
-    <button className="go" onClick={()=>save('session',{...active.d,end:Date.now()},active.id)}>End session</button></div></>;
+  if(active)return <Live session={active} name={nm} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
   const ok=a&&b&&a!==b;
   return <><h1>New session</h1>
     {ps.length<2?<p className="n">Add at least two players on the Players tab first.</p>:<div className="card">

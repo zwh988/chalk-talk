@@ -11,12 +11,13 @@ const blank=()=>({no:0,name:'',by:'',balls:[{n:0,x:25,y:25}],target:null as numb
 export function measure(d:any){
   const o=d.balls.find((b:any)=>b.n===d.target),c=d.balls.find((b:any)=>b.n===0);
   if(!o||!c||d.pocket==null)return null;
-  const p=POCK[d.pocket],route=[{x:o.x,y:o.y},{x:p[0],y:p[1]}];
-  const L=Math.hypot(route[1].x-o.x,route[1].y-o.y)||1,ux=(route[1].x-o.x)/L,uy=(route[1].y-o.y)/L;
-  const g={x:o.x-ux*DIA,y:o.y-uy*DIA};
-  let obj=0;for(let i=1;i<route.length;i++)obj+=Math.hypot(route[i].x-route[i-1].x,route[i].y-route[i-1].y);
-  const ax=g.x-c.x,ay=g.y-c.y,A=Math.hypot(ax,ay)||1;
-  return {g,route,cut:Math.acos(Math.max(-1,Math.min(1,(ax*ux+ay*uy)/A)))*180/Math.PI,cue:A,obj};
+  const p=POCK[d.pocket],L=Math.hypot(p[0]-o.x,p[1]-o.y)||1,ux=(p[0]-o.x)/L,uy=(p[1]-o.y)/L;
+  const g={x:o.x-ux*DIA,y:o.y-uy*DIA},ax=g.x-c.x,ay=g.y-c.y,A=Math.hypot(ax,ay)||1,dot=(ax*ux+ay*uy)/A;
+  const tx=ax/A-dot*ux,ty=ay/A-dot*uy,tl=Math.hypot(tx,ty);   // tangent line: where a stun cue ball goes after contact
+  const pts=[g,...d.path,...(d.leave?[d.leave]:[])];
+  let after=0;for(let i=1;i<pts.length;i++)after+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+  const rails=d.path.filter((q:any)=>q.x===0||q.x===100||q.y===0||q.y===50).length;
+  return {g,route:[{x:o.x,y:o.y},{x:p[0],y:p[1]}],cut:Math.acos(Math.max(-1,Math.min(1,dot)))*180/Math.PI,cue:A,obj:L,after,rails,tan:tl>1e-3?{x:tx/tl,y:ty/tl}:null};
 }
 export const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
 export function Tip({tip,set}:any){
@@ -37,7 +38,9 @@ function Table({d,sel,handlers,small}:any){
     {d.leave&&<circle cx={d.leave.x} cy={d.leave.y} r={d.leave.tol} fill="rgba(232,163,61,.2)" stroke="#e8a33d" strokeWidth=".5" strokeDasharray="1.5 1"/>}
     {m&&cue&&<line x1={cue.x} y1={cue.y} x2={m.g.x} y2={m.g.y} stroke="#fff" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
     {m&&<line x1={m.route[0].x} y1={m.route[0].y} x2={m.route[1].x} y2={m.route[1].y} stroke="#9fd0e6" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
-    {m&&d.leave&&<line x1={m.g.x} y1={m.g.y} x2={d.leave.x} y2={d.leave.y} stroke="#e8a33d" strokeWidth=".6" strokeDasharray="1.5 1.2"/>}
+    {m&&m.tan&&!small&&(()=>{const t=m.tan,s=Math.min(t.x>0?(100-m.g.x)/t.x:t.x<0?-m.g.x/t.x:1e9,t.y>0?(50-m.g.y)/t.y:t.y<0?-m.g.y/t.y:1e9);return <line x1={m.g.x} y1={m.g.y} x2={m.g.x+t.x*s} y2={m.g.y+t.y*s} stroke="#fff" strokeOpacity=".3" strokeWidth=".4" strokeDasharray="1 1.5"/>})()}
+    {m&&(d.path.length>0||d.leave)&&<polyline points={[m.g,...d.path,...(d.leave?[d.leave]:[])].map((p:any)=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#e8a33d" strokeWidth=".6" strokeDasharray="1.5 1.2"/>}
+    {m&&d.path.map((p:any,i:number)=><circle key={i} cx={p.x} cy={p.y} r=".9" fill="#e8a33d"/>)}
     {m&&<circle cx={m.g.x} cy={m.g.y} r={r} fill="none" stroke="#fff" strokeWidth=".5" strokeDasharray="1 .8"/>}
     {d.balls.map((b:any)=><g key={b.n}><circle cx={b.x} cy={b.y} r={r} fill={BC[b.n]} stroke={sel===b.n?'#e8a33d':b.n===d.target?'#9fd0e6':'none'} strokeWidth=".7"/>
       {sel===b.n&&!small&&<text x={b.x} y={b.y-2.6} textAnchor="middle" fontSize="3" fill="#fff">{b.n===0?'CB':b.n}</text>}</g>)}</svg>;
@@ -48,27 +51,30 @@ function Editor({init,id,players,onDone}:any){
   const pt=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*110-5,y:(e.clientY-r.top)/r.height*60-5}};
   const hit=(p:any)=>d.balls.map((b:any)=>({b,k:Math.hypot(b.x-p.x,b.y-p.y)})).filter((h:any)=>h.k<4).sort((a:any,b:any)=>a.k-b.k)[0]?.b;
   const cl=(v:number,m:number)=>Math.max(BR,Math.min(m-BR,v));
+  const snap=(p:any)=>({x:p.x<3?0:p.x>97?100:p.x,y:p.y<3?0:p.y>47?50:p.y});
   const put=(n:number,p:any)=>setD((x:any)=>({...x,balls:x.balls.some((b:any)=>b.n===n)?x.balls.map((b:any)=>b.n===n?{...b,x:cl(p.x,100),y:cl(p.y,50)}:b):[...x.balls,{n,x:cl(p.x,100),y:cl(p.y,50)}]}));
   const down=(e:any)=>{e.currentTarget.setPointerCapture(e.pointerId);const p=pt(e);
     if(mode==='balls'){const h=hit(p);if(h){setSel(h.n);drag.current=true}else if(sel!==null)put(sel,p)}
     else if(mode==='target'){const h=hit(p),pk=POCK.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<7);if(h&&h.n!==0)setD({...d,target:h.n});else if(pk>=0)setD({...d,pocket:pk})}
+    else if(mode==='path'){if(d.path.length<4)setD({...d,path:[...d.path,snap(p)]})}
     else setD({...d,leave:{x:p.x,y:p.y,tol:d.leave?.tol??6}});
   };
   const mv=(e:any)=>{if(drag.current&&sel!==null)put(sel,pt(e))};
   const pick=(n:number)=>{setSel(n);setMode('balls');if(!d.balls.some((b:any)=>b.n===n))put(n,{x:30+n*4,y:25})};
   const m=measure(d);
-  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',leave:'Tap where the cue ball should end up.'};
+  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path.',leave:'Tap where the cue ball should end up.'};
   return <>
     <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>Shot #{d.no}</b></div>
     <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=false}}}/>
-      <div className="row" style={{marginTop:8}}>{['balls','target','leave'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
+      <div className="row" style={{marginTop:8}}>{['balls','target','path','leave'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
       <div className="n">{hint[mode]}</div>
       {mode==='balls'&&<><div className="row">{[0,1,2,3,4,5,6,7,8,9].map(n=><button key={n} className={'chip'+(sel===n?' on':'')} style={{minWidth:34,padding:'9px 2px',opacity:d.balls.some((b:any)=>b.n===n)?1:.55}} onClick={()=>pick(n)}>{n===0?'CB':n}</button>)}</div>
         {sel!==null&&d.balls.some((b:any)=>b.n===sel)&&<button className="link" onClick={()=>{setD({...d,balls:d.balls.filter((b:any)=>b.n!==sel),target:d.target===sel?null:d.target});setSel(null)}}>Remove selected ball</button>}</>}
       {mode==='target'&&<div className="n">Target: {d.target!=null?'ball '+d.target:'—'} → {d.pocket!=null?PNAME[d.pocket]+' pocket':'—'}</div>}
+      {mode==='path'&&<button className="link" onClick={()=>setD({...d,path:d.path.slice(0,-1)})}>Undo last point</button>}
       {mode==='leave'&&<div className="row">{[3,6,9].map(t=><button key={t} className={'chip'+(d.leave?.tol===t?' on':'')} onClick={()=>d.leave&&setD({...d,leave:{...d.leave,tol:t}})}>{['Tight','Medium','Loose'][t/3-1]}</button>)}<button className="link" onClick={()=>setD({...d,leave:null})}>Clear</button></div>}
     </div>
-    <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span>{d.leave&&<span className="tag g">Cue ball after contact {dm(Math.hypot(m.g.x-d.leave.x,m.g.y-d.leave.y))} diamonds</span>}</div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
+    <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span>{m.after>0&&<span className="tag g">Cue ball after contact {dm(m.after)} diamonds{m.rails?` · ${m.rails} rail${m.rails>1?'s':''}`:''}</span>}</div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
       {m&&m.cut>85&&<div className="n">Cut over 85° · not makeable</div>}</div>
     <div className="card"><h2>Cue ball</h2><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center'}}>{tipLabel(d.tip)}</div>
       <div className="lbl">Speed</div><div className="row">{SPEEDS.map((s,i)=><button key={s} className={'chip'+(d.speed===i?' on':'')} style={{padding:'10px 4px'}} onClick={()=>setD({...d,speed:i})}>{s}</button>)}</div></div>

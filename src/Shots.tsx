@@ -28,7 +28,6 @@ const dm=(v:number)=>(v/12.5).toFixed(1);
 const dia=(x:number,y:number)=><polygon key={x+'_'+y} points={`${x},${y-1} ${x+1},${y} ${x},${y+1} ${x-1},${y}`} fill="#e8d9a8"/>;
 function Table({d,sel,handlers,small}:any){
   const m=measure(d),cue=d.balls.find((b:any)=>b.n===0),r=small?2.4:BR;
-  const line=m&&cue?[cue,m.g,...m.route.slice(1)]:[];
   return <svg viewBox="-5 -5 110 60" style={{width:'100%',display:'block',touchAction:handlers?'none':'auto'}} {...handlers}>
     <rect x="-5" y="-5" width="110" height="60" rx="3" fill="#4a2f1d"/><rect x="-1.2" y="-1.2" width="102.4" height="52.4" fill="#0f3f42"/><rect width="100" height="50" fill="#14575a"/>
     {[1,2,3,4,5,6,7].map(k=><line key={'x'+k} x1={k*12.5} y1="0" x2={k*12.5} y2="50" stroke="#fff" strokeOpacity=".16" strokeWidth=".3"/>)}
@@ -36,7 +35,9 @@ function Table({d,sel,handlers,small}:any){
     {[1,2,3,5,6,7].flatMap(k=>[dia(k*12.5,-3),dia(k*12.5,53)])}{[1,2,3].flatMap(k=>[dia(-3,k*12.5),dia(103,k*12.5)])}
     {POCK.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r={i===d.pocket?3.4:2.6} fill={i===d.pocket?'#e8a33d':'#06191a'}/>)}
     {d.leave&&<circle cx={d.leave.x} cy={d.leave.y} r={d.leave.tol} fill="rgba(232,163,61,.2)" stroke="#e8a33d" strokeWidth=".5" strokeDasharray="1.5 1"/>}
-    {line.length>1&&<polyline points={line.map((p:any)=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#fff" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
+    {m&&cue&&<line x1={cue.x} y1={cue.y} x2={m.g.x} y2={m.g.y} stroke="#fff" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
+    {m&&<line x1={m.route[0].x} y1={m.route[0].y} x2={m.route[1].x} y2={m.route[1].y} stroke="#9fd0e6" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
+    {m&&d.leave&&<line x1={m.g.x} y1={m.g.y} x2={d.leave.x} y2={d.leave.y} stroke="#e8a33d" strokeWidth=".6" strokeDasharray="1.5 1.2"/>}
     {m&&<circle cx={m.g.x} cy={m.g.y} r={r} fill="none" stroke="#fff" strokeWidth=".5" strokeDasharray="1 .8"/>}
     {d.balls.map((b:any)=><g key={b.n}><circle cx={b.x} cy={b.y} r={r} fill={BC[b.n]} stroke={sel===b.n?'#e8a33d':b.n===d.target?'#9fd0e6':'none'} strokeWidth=".7"/>
       {sel===b.n&&!small&&<text x={b.x} y={b.y-2.6} textAnchor="middle" fontSize="3" fill="#fff">{b.n===0?'CB':b.n}</text>}</g>)}</svg>;
@@ -67,7 +68,7 @@ function Editor({init,id,players,onDone}:any){
       {mode==='target'&&<div className="n">Target: {d.target!=null?'ball '+d.target:'—'} → {d.pocket!=null?PNAME[d.pocket]+' pocket':'—'}</div>}
       {mode==='leave'&&<div className="row">{[3,6,9].map(t=><button key={t} className={'chip'+(d.leave?.tol===t?' on':'')} onClick={()=>d.leave&&setD({...d,leave:{...d.leave,tol:t}})}>{['Tight','Medium','Loose'][t/3-1]}</button>)}<button className="link" onClick={()=>setD({...d,leave:null})}>Clear</button></div>}
     </div>
-    <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span></div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
+    <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span>{d.leave&&<span className="tag g">Cue ball after contact {dm(Math.hypot(m.g.x-d.leave.x,m.g.y-d.leave.y))} diamonds</span>}</div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
       {m&&m.cut>85&&<div className="n">Cut over 85° · not makeable</div>}</div>
     <div className="card"><h2>Cue ball</h2><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center'}}>{tipLabel(d.tip)}</div>
       <div className="lbl">Speed</div><div className="row">{SPEEDS.map((s,i)=><button key={s} className={'chip'+(d.speed===i?' on':'')} style={{padding:'10px 4px'}} onClick={()=>setD({...d,speed:i})}>{s}</button>)}</div></div>

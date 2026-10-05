@@ -35,38 +35,47 @@ function Table({d,sel,handlers,small}:any){
     {[1,2,3].map(k=><line key={'y'+k} x1="0" y1={k*12.5} x2="100" y2={k*12.5} stroke="#fff" strokeOpacity=".16" strokeWidth=".3"/>)}
     {[1,2,3,5,6,7].flatMap(k=>[dia(k*12.5,-3),dia(k*12.5,53)])}{[1,2,3].flatMap(k=>[dia(-3,k*12.5),dia(103,k*12.5)])}
     {POCK.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r={i===d.pocket?3.4:2.6} fill={i===d.pocket?'#e8a33d':'#06191a'}/>)}
-    {d.leave&&<circle cx={d.leave.x} cy={d.leave.y} r={d.leave.tol} fill="rgba(232,163,61,.2)" stroke="#e8a33d" strokeWidth=".5" strokeDasharray="1.5 1"/>}
+    {d.leave&&<><circle cx={d.leave.x} cy={d.leave.y} r={d.leave.tol} fill="rgba(232,163,61,.2)" stroke="#e8a33d" strokeWidth=".5" strokeDasharray="1.5 1"/><circle cx={d.leave.x} cy={d.leave.y} r="1" fill="#e8a33d"/></>}
     {m&&cue&&<line x1={cue.x} y1={cue.y} x2={m.g.x} y2={m.g.y} stroke="#fff" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
     {m&&<line x1={m.route[0].x} y1={m.route[0].y} x2={m.route[1].x} y2={m.route[1].y} stroke="#9fd0e6" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
     {m&&m.tan&&!small&&(()=>{const t=m.tan,s=Math.min(t.x>0?(100-m.g.x)/t.x:t.x<0?-m.g.x/t.x:1e9,t.y>0?(50-m.g.y)/t.y:t.y<0?-m.g.y/t.y:1e9);return <line x1={m.g.x} y1={m.g.y} x2={m.g.x+t.x*s} y2={m.g.y+t.y*s} stroke="#fff" strokeOpacity=".3" strokeWidth=".4" strokeDasharray="1 1.5"/>})()}
     {m&&(d.path.length>0||d.leave)&&<polyline points={[m.g,...d.path,...(d.leave?[d.leave]:[])].map((p:any)=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#e8a33d" strokeWidth=".6" strokeDasharray="1.5 1.2"/>}
-    {m&&d.path.map((p:any,i:number)=><circle key={i} cx={p.x} cy={p.y} r=".9" fill="#e8a33d"/>)}
+    {m&&d.path.map((p:any,i:number)=><circle key={i} cx={p.x} cy={p.y} r="1.1" fill="#e8a33d"/>)}
     {m&&<circle cx={m.g.x} cy={m.g.y} r={r} fill="none" stroke="#fff" strokeWidth=".5" strokeDasharray="1 .8"/>}
-    {d.balls.map((b:any)=><g key={b.n}><circle cx={b.x} cy={b.y} r={r} fill={BC[b.n]} stroke={sel===b.n?'#e8a33d':b.n===d.target?'#9fd0e6':'none'} strokeWidth=".7"/>
+    {d.balls.map((b:any)=><g key={b.n}><circle cx={b.x} cy={b.y} r={r} fill={BC[b.n]} stroke={b.n===0?'#0b1a1b':'#fff'} strokeWidth=".5"/>{(sel===b.n||b.n===d.target)&&<circle cx={b.x} cy={b.y} r={r+1} fill="none" stroke={sel===b.n?'#e8a33d':'#9fd0e6'} strokeWidth=".6"/>}
       {sel===b.n&&!small&&<text x={b.x} y={b.y-2.6} textAnchor="middle" fontSize="3" fill="#fff">{b.n===0?'CB':b.n}</text>}</g>)}</svg>;
 }
 function Editor({init,id,players,onDone}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
-  const drag=useRef(false);
+  const drag=useRef<any>(null);
   const pt=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*110-5,y:(e.clientY-r.top)/r.height*60-5}};
   const hit=(p:any)=>d.balls.map((b:any)=>({b,k:Math.hypot(b.x-p.x,b.y-p.y)})).filter((h:any)=>h.k<4).sort((a:any,b:any)=>a.k-b.k)[0]?.b;
   const cl=(v:number,m:number)=>Math.max(BR,Math.min(m-BR,v));
   const snap=(p:any)=>({x:p.x<3?0:p.x>97?100:p.x,y:p.y<3?0:p.y>47?50:p.y});
   const put=(n:number,p:any)=>setD((x:any)=>({...x,balls:x.balls.some((b:any)=>b.n===n)?x.balls.map((b:any)=>b.n===n?{...b,x:cl(p.x,100),y:cl(p.y,50)}:b):[...x.balls,{n,x:cl(p.x,100),y:cl(p.y,50)}]}));
   const down=(e:any)=>{e.currentTarget.setPointerCapture(e.pointerId);const p=pt(e);
-    if(mode==='balls'){const h=hit(p);if(h){setSel(h.n);drag.current=true}else if(sel!==null)put(sel,p)}
-    else if(mode==='target'){const h=hit(p),pk=POCK.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<7);if(h&&h.n!==0)setD({...d,target:h.n});else if(pk>=0)setD({...d,pocket:pk})}
+    const pi=d.path.findIndex((q:any)=>Math.hypot(q.x-p.x,q.y-p.y)<3.5);
+    if(pi>=0){drag.current={k:'path',i:pi};return}
+    if(d.leave&&Math.hypot(d.leave.x-p.x,d.leave.y-p.y)<3.5){drag.current={k:'leave'};return}
+    const h=hit(p);
+    if(h){drag.current={k:'ball',n:h.n};if(mode==='target'&&h.n!==0)setD({...d,target:h.n});else if(mode==='balls')setSel(h.n);return}
+    if(mode==='balls'){if(sel!==null)put(sel,p)}
+    else if(mode==='target'){const pk=POCK.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<7);if(pk>=0)setD({...d,pocket:pk})}
     else if(mode==='path'){if(d.path.length<4)setD({...d,path:[...d.path,snap(p)]})}
     else setD({...d,leave:{x:p.x,y:p.y,tol:d.leave?.tol??6}});
   };
-  const mv=(e:any)=>{if(drag.current&&sel!==null)put(sel,pt(e))};
+  const mv=(e:any)=>{const g=drag.current;if(!g)return;const p=pt(e);
+    if(g.k==='ball')put(g.n,p);
+    else if(g.k==='path')setD((x:any)=>({...x,path:x.path.map((q:any,i:number)=>i===g.i?snap(p):q)}));
+    else setD((x:any)=>({...x,leave:{...x.leave,x:p.x,y:p.y}}));
+  };
   const pick=(n:number)=>{setSel(n);setMode('balls');if(!d.balls.some((b:any)=>b.n===n))put(n,{x:30+n*4,y:25})};
   const m=measure(d);
-  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path.',leave:'Tap where the cue ball should end up.'};
+  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
     <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>Shot #{d.no}</b></div>
-    <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=false}}}/>
-      <div className="row" style={{marginTop:8}}>{['balls','target','path','leave'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
+    <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=null}}}/>
+      <div className="row" style={{marginTop:8}}>{['balls','target','leave','path'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
       <div className="n">{hint[mode]}</div>
       {mode==='balls'&&<><div className="row">{[0,1,2,3,4,5,6,7,8,9].map(n=><button key={n} className={'chip'+(sel===n?' on':'')} style={{minWidth:34,padding:'9px 2px',opacity:d.balls.some((b:any)=>b.n===n)?1:.55}} onClick={()=>pick(n)}>{n===0?'CB':n}</button>)}</div>
         {sel!==null&&d.balls.some((b:any)=>b.n===sel)&&<button className="link" onClick={()=>{setD({...d,balls:d.balls.filter((b:any)=>b.n!==sel),target:d.target===sel?null:d.target});setSel(null)}}>Remove selected ball</button>}</>}

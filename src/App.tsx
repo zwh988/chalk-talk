@@ -27,9 +27,12 @@ function Players(){
   const ps=useLiveQuery(()=>ofType('player'),[])||[];
   const [name,setName]=useState('');
   const add=async()=>{if(!name.trim())return;await save('player',{name:name.trim(),color:COLORS[ps.length%COLORS.length],archived:false});setName('')};
+  const pickPic=async(e:any,p:any)=>{const f=e.target.files?.[0];if(!f)return;const bm=await createImageBitmap(f),k=Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=c.height=192;
+    c.getContext('2d')!.drawImage(bm,(bm.width-k)/2,(bm.height-k)/2,k,k,0,0,192,192);await save('player',{...p.d,pic:c.toDataURL('image/jpeg',.8)},p.id)};
   return <><h1>Players</h1>
     {!ps.length&&<p className="n">Create the two of you to get started.</p>}
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
+      <label className="avatar" style={p.d.pic?{background:`url(${p.d.pic}) center/cover`}:undefined}>{!p.d.pic&&(p.d.name[0]||'+')}<input type="file" accept="image/*" hidden onChange={e=>pickPic(e,p)}/></label>
       <button className="dot" aria-label="Change colour" style={{background:p.d.color}} onClick={()=>save('player',{...p.d,color:COLORS[(COLORS.indexOf(p.d.color)+1)%COLORS.length]},p.id)}/>
       <input defaultValue={p.d.name} onBlur={e=>e.target.value.trim()&&e.target.value!==p.d.name&&save('player',{...p.d,name:e.target.value.trim()},p.id)}/>
       <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}

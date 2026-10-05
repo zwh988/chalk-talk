@@ -20,7 +20,7 @@ function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['se
   {v==='sessions'?<History/>:<div className="card"><b>Coming soon</b><div className="n">Run-out rates, balls run, and break tables will appear here once the stats build lands.</div></div>}</>}
 function More(){
   const [v,setV]=useState('');const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
-  if(v)return <><button className="link" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
+  if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
   return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}</span><span>›</span></button>)}</>;
 }
 function Players(){

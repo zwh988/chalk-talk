@@ -3,6 +3,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop} from './db';
 import {derive} from './engine';
 import {sync} from './sync';
+import Avatar from './Avatar';
 import {Tip} from './Shots';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],SP=['Controlled','Medium','Power'],ONE=['Pocketed','High of side','Low of side','Other'];
@@ -10,7 +11,7 @@ const srt=(a:number[])=>[...a].sort((x,y)=>x-y);
 const Chips=({items,cur,set,w}:any)=><div className="row">{items.map((x:string,i:number)=><button key={i} className={'chip'+(cur===i?' on':'')} style={w?{minWidth:w,padding:'12px 2px'}:undefined} onClick={()=>set(i)}>{x}</button>)}</div>;
 const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
 
-export default function Live({session,name,end}:any){
+export default function Live({session,name,pr,end}:any){
   const pl:string[]=session.d.players,sid=session.id;
   const evs=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del&&r.d.s===sid).toArray().then(a=>a.sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u))),[sid])||[];
   const dirty=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])??0;
@@ -23,7 +24,7 @@ export default function Live({session,name,end}:any){
   const doEnd=async(withSync:boolean)=>{try{if(withSync)await sync(setMsg);await end();if(withSync)await sync(()=>{}).catch(()=>{})}catch(e:any){setMsg(e.message)}};
   return <><div className="row" style={{marginBottom:10}}><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button><button className="ghost" onClick={()=>dirty?setCe(true):end()}>End session</button>{dirty>0&&<span className="n">{dirty} unsynced</span>}</div>
     {ce&&<div className="card"><b>{dirty} change{dirty===1?'':'s'} not synced to GitHub.</b><div className="row" style={{marginTop:8}}><button className="chip" onClick={()=>doEnd(true)}>Sync and end</button><button className="chip" onClick={()=>doEnd(false)}>End anyway</button><button className="chip" onClick={()=>setCe(false)}>Cancel</button></div><div className="n">{msg}</div></div>}
-    <div className="hdr"><h1>Rack {st.rack}</h1><b>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}</b></div>
+    {session.d.name&&<div className="n">{session.d.name}</div>}<div className="hdr"><h1>Rack {st.rack}</h1><b style={{display:'flex',alignItems:'center',gap:6}}><Avatar p={pr(pl[0])} size={26}/>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}<Avatar p={pr(pl[1])} size={26}/></b></div>
     {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={name} other={other}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={name} other={other}/>}
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
       return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
@@ -32,7 +33,7 @@ export function line(e:any,name:(id:string)=>string){
   const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
   if(e.type==='break'){
     if(d.skip)p.push('Break not logged');
-    else p.push('Break',Z[d.z],d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,SP[d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
+    else p.push('Break',d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,Z[d.z],SP[d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
     return p.join(' · ');
   }
   const open=d.open?(d.open==='None'?'No shot':d.open):d.rating||'';
@@ -40,6 +41,7 @@ export function line(e:any,name:(id:string)=>string){
   if(d.board==='Problem')p.push('problem '+(d.prob?.join(',')||'?'));
   p.push(d.push?'Push out':d.won?(d.runout?'Won rack · run out':'Won rack · 9 off a combo'):d.res==='Missed'?`Missed the ${d.low}`:d.res);
   if(!(d.potted.length===0&&['Safe played','Escape hit'].includes(d.res)))p.push(`${d.potted.length} ball${d.potted.length===1?'':'s'}`);
+  if(d.oo?.length)p.push('out of order '+d.oo.join(','));
   if(d.cause)p.push(d.cause);if(d.fl.length)p.push(`fluke ×${d.fl.length}`);if(d.fg)p.push(`⚑${d.fg}`);
   return p.join(' · ');
 }
@@ -78,9 +80,9 @@ function BreakForm({st,sid,last,name,other}:any){
     save('break',{t:Date.now(),s:sid,rack:st.rack,by,z,ct,cf,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
   const skip=(first:string)=>save('break',{t:Date.now(),s:sid,rack:st.rack,by,skip:true,drops:[],one:null,next:first});
   return <div className="card"><div className="hdr"><b>{name(by)} breaks</b><button className="link" onClick={()=>setBy(o)}>Change breaker</button></div>
-    <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
     <div className="lbl">Contact on 1-ball · drag the cue ball around the 1-ball</div><Contact side={side} cf={cf} set={(sd:number,c:number)=>{setSide(sd);setCf(c)}}/>
     <div className="n" style={{textAlign:'center'}}>{ct===8?'Straight on · no cut':`${side?'Right':'Left'} · ${ct}/8 ball · ${ctLabel(ct)}`}</div>
+    <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
     <div className="lbl">Speed</div><Chips items={SP} cur={spd} set={setSpd}/>
     <div className="lbl">Cue ball tip · {tipLabel(tip)}</div>
     <Tip tip={tip} set={setTip}/>
@@ -93,11 +95,11 @@ function BreakForm({st,sid,last,name,other}:any){
     {ask&&<div><div className="lbl">Who shoots first?</div><div className="row">{[by,o].map(p=><button key={p} className="chip" onClick={()=>skip(p)}>{name(p)}</button>)}</div></div>}</div>;
 }
 function VisitForm({st,sid,name,other}:any){
-  const [open,setOpen]=useState(''),[board,setBoard]=useState('Clear'),[prob,setProb]=useState<number[]>([]),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
+  const [open,setOpen]=useState(''),[board,setBoard]=useState(st.prob?.length?'Problem':'Clear'),[prob,setProb]=useState<number[]>(st.prob||[]),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
   const [cause,setCause]=useState(''),[fl,setFl]=useState<number[]>([]),[fg,setFg]=useState(0),[fp,setFp]=useState(false),[ask,setAsk]=useState(false);
   const by=st.shooter,o=other(by),push=res==='Push out';
-  const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Safe played','Escape hit','Foul','Pocketed anyway',...p]:['Won rack','Missed','Safe played','Foul',...p]};
-  const auto=(n:number[],rs:string,op:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(op&&n.length?(op==='None'?'Pocketed anyway':'Missed'):'');
+  const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Safe played','Escape hit','Missed','Foul',...p]:['Won rack','Missed','Safe played','Foul',...p]};
+  const auto=(n:number[],rs:string,op:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(op&&n.length?'Missed':'');
   const rem=st.table.filter((x:number)=>!P.includes(x)),won=P.includes(9);
   const sorted=srt(st.table);let j=0;while(j<sorted.length&&P.includes(sorted[j]))j++;
   const oo=sorted.slice(j).filter(x=>P.includes(x));
@@ -111,7 +113,7 @@ function VisitForm({st,sid,name,other}:any){
   const pick=(r:string)=>{setRes(r);if(r==='Won rack')setP([...st.table]);else if(r==='Escape hit')setP([]);else setP(P.filter(x=>x!==9))};
   const choose=(op:string)=>{setOpen(op);const ok=res==='Won rack'||outsFor(op).includes(res);setRes(ok?auto(P,res,op):auto(P,'',op))};
   const finish=async(pass:boolean)=>{
-    const id=await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,low:rem[0],cause,fl,fg,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length});
+    const id=await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,oo,low:rem[0],cause,fl,fg,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length});
     for(let i=0;i<fg;i++)await save('flag',{s:sid,rack:st.rack,by,table:st.table,open,visit:id});
   };
   const list=outsFor(open);

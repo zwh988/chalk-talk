@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import Venues from './Venues';
+import Avatar from './Avatar';
 import Shots from './Shots';
 import Live from './Live';
 import Settings from './Settings';
@@ -10,10 +11,15 @@ import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
 type Tab='play'|'review'|'shots'|'more';
 const LABEL:Record<Tab,string>={play:'Play',review:'Review',shots:'Shots',more:'More'};
+const ICONS:Record<Tab,any>={
+  play:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/></svg>,
+  review:<svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>,
+  shots:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>,
+  more:<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>};
 export default function App(){
   const [tab,setTab]=useState<Tab>('play');
   return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<Shots/>:<More/>}</main>
-    <nav><b className="brand">Chalk Talk</b>{(Object.keys(LABEL) as Tab[]).map(t=><button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{LABEL[t]}</button>)}</nav></div>;
+    <nav>{(Object.keys(ICONS) as Tab[]).map(t=><button key={t} aria-label={LABEL[t]} className={tab===t?'on':''} onClick={()=>setTab(t)}>{ICONS[t]}</button>)}</nav></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
@@ -27,13 +33,14 @@ function Players(){
   const ps=useLiveQuery(()=>ofType('player'),[])||[];
   const [name,setName]=useState('');
   const add=async()=>{if(!name.trim())return;await save('player',{name:name.trim(),color:COLORS[ps.length%COLORS.length],archived:false});setName('')};
-  const pickPic=async(e:any,p:any)=>{const f=e.target.files?.[0];if(!f)return;const bm=await createImageBitmap(f),k=Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=c.height=192;
-    c.getContext('2d')!.drawImage(bm,(bm.width-k)/2,(bm.height-k)/2,k,k,0,0,192,192);await save('player',{...p.d,pic:c.toDataURL('image/jpeg',.8)},p.id)};
+  const pickPic=async(e:any,p:any)=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;
+    try{const bm=await createImageBitmap(f),k=Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=c.height=192;
+      c.getContext('2d')!.drawImage(bm,(bm.width-k)/2,(bm.height-k)/2,k,k,0,0,192,192);await save('player',{...p.d,pic:c.toDataURL('image/jpeg',.8)},p.id)}
+    catch{alert('Could not read that photo. Try a JPEG or PNG.')}};
   return <><h1>Players</h1>
     {!ps.length&&<p className="n">Create the two of you to get started.</p>}
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
-      <label className="avatar" style={p.d.pic?{background:`url(${p.d.pic}) center/cover`}:undefined}>{!p.d.pic&&(p.d.name[0]||'+')}<input type="file" accept="image/*" hidden onChange={e=>pickPic(e,p)}/></label>
-      <button className="dot" aria-label="Change colour" style={{background:p.d.color}} onClick={()=>save('player',{...p.d,color:COLORS[(COLORS.indexOf(p.d.color)+1)%COLORS.length]},p.id)}/>
+      <label className="avatar-btn"><Avatar p={p} size={44}/><input type="file" accept="image/*" className="file" onChange={e=>pickPic(e,p)}/></label>
       <input defaultValue={p.d.name} onBlur={e=>e.target.value.trim()&&e.target.value!==p.d.name&&save('player',{...p.d,name:e.target.value.trim()},p.id)}/>
       <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
     <div className="card row"><input placeholder="New player name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><button className="go sm" onClick={add}>Add</button></div></>;
@@ -44,18 +51,19 @@ function Session(){
   const ss=useLiveQuery(()=>ofType('session'),[])||[];
   const vs=useLiveQuery(()=>ofType('venue'),[])||[];
   const active=ss.find(s=>!s.d.end);
-  const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [tbl,setT]=useState('');
+  const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [sname,setN]=useState('');const [tbl,setT]=useState('');
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
   const nm=(id:string)=>all.find(p=>p.id===id)?.d.name??'?';
-  if(active)return <Live session={active} name={nm} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
+  if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===id)} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
   const ok=a&&b&&a!==b;
   return <><h1>New session</h1>
     {ps.length<2?<p className="n">Add at least two players on the Players tab first.</p>:<div className="card">
+      <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
       <label>Player 1<select value={a} onChange={e=>setA(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Player 2<select value={b} onChange={e=>setB(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues on the Venues tab.</div>}
       <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
-      <button className="go" disabled={!ok} onClick={()=>save('session',{players:[a,b],venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
+      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:[a,b],venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
 }
 function Sync(){
   const [c,setC]=useState(getCfg());const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);

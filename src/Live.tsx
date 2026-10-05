@@ -127,11 +127,11 @@ function VisitForm({st,sid,name,other}:any){
       {board==='Problem'&&<><div className="lbl">Which ball(s) are the problem?</div><div className="row">{st.table.map((i:number)=><button key={i} className={'chip'+(prob.includes(i)?' on':'')} style={{minWidth:40,padding:'10px 4px'}} onClick={()=>setProb(prob.includes(i)?prob.filter(x=>x!==i):[...prob,i])}>{i}</button>)}</div></>}</>}
     <div className="lbl">What happened</div>
     <div className="row">{list.length?list.map(x=><button key={x} className={'chip'+(res===x?' on':'')} onClick={()=>pick(x)}>{x}{x==='Escape hit'&&<small>kick or jump</small>}</button>):<span className="n">Pick the opening shot first.</span>}</div>
-    {['Missed','Foul'].includes(res)&&open!=='None'&&<><div className="lbl">Cause (optional)</div><div className="row">{['Pot','Position','Decision','Other'].map(c=><button key={c} className={'chip'+(cause===c?' on':'')} onClick={()=>setCause(cause===c?'':c)}>{c}</button>)}</div></>}
+    {['Missed','Foul'].includes(res)&&open!=='None'&&<><div className="lbl">Cause (required)</div><div className="row">{['Pot','Position','Decision','Other'].map(c=><button key={c} className={'chip'+(cause===c?' on':'')} onClick={()=>setCause(cause===c?'':c)}>{c}</button>)}</div></>}
     <div className="lbl">Optional</div>
     <div className="row"><button className="chip opt" onClick={()=>setFg(fg+1)}>⚑ Flag shot</button><button className="chip opt" onClick={()=>setFp(true)}>✦ Fluke</button></div>
     {fp&&<><div className="lbl">Which ball fluked?</div><div className="row">{[...st.table.map(String),'Skip'].map(b=><button key={b} className="chip" style={{minWidth:40}} onClick={()=>{setFl([...fl,+b||0]);setFp(false)}}>{b}</button>)}</div></>}
     <div className="tags">{fl.map((f,i)=><span key={i} className="tag f">✦ Fluke{f?' · '+f:''}<button className="x" onClick={()=>setFl(fl.filter((_,q)=>q!==i))}>✕</button></span>)}{fg>0&&<span className="tag g">⚑ Flags: {fg}<button className="x" onClick={()=>setFg(fg-1)}>✕</button></span>}</div>
-    <button className="go" disabled={!res||(!open&&!push)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
+    <button className="go" disabled={!res||(!open&&!push)||(['Missed','Foul'].includes(res)&&open!=='None'&&!cause)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
     {ask&&<div className="card"><b>Push out played</b><div className="n">Potted balls stay down. The 9 is respotted.</div><div className="row"><button className="chip" onClick={()=>finish(false)}>{name(o)} shoots it</button><button className="chip" onClick={()=>finish(true)}>Passes it back</button></div></div>}</div>;
 }

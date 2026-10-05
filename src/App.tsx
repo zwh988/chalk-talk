@@ -3,6 +3,8 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import Venues from './Venues';
 import Avatar from './Avatar';
+import Cropper from './Cropper';
+import Stats from './Review';
 import Shots from './Shots';
 import Live from './Live';
 import Settings from './Settings';
@@ -23,7 +25,7 @@ export default function App(){
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
-  {v==='sessions'?<History/>:<div className="card"><b>Coming soon</b><div className="n">Run-out rates, balls run, and break tables will appear here once the stats build lands.</div></div>}</>}
+  {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
 function More(){
   const [v,setV]=useState('');const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
   if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
@@ -33,11 +35,9 @@ function Players(){
   const ps=useLiveQuery(()=>ofType('player'),[])||[];
   const [name,setName]=useState('');
   const add=async()=>{if(!name.trim())return;await save('player',{name:name.trim(),color:COLORS[ps.length%COLORS.length],archived:false});setName('')};
-  const pickPic=async(e:any,p:any)=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;
-    try{const bm=await createImageBitmap(f),k=Math.min(bm.width,bm.height),c=document.createElement('canvas');c.width=c.height=192;
-      c.getContext('2d')!.drawImage(bm,(bm.width-k)/2,(bm.height-k)/2,k,k,0,0,192,192);await save('player',{...p.d,pic:c.toDataURL('image/jpeg',.8)},p.id)}
-    catch{alert('Could not read that photo. Try a JPEG or PNG.')}};
-  return <><h1>Players</h1>
+  const [crop,setCrop]=useState<any>(null);
+  const pickPic=(e:any,p:any)=>{const f=e.target.files?.[0];e.target.value='';if(f)setCrop({f,p})};
+  return <>{crop&&<Cropper file={crop.f} onCancel={()=>setCrop(null)} onDone={async(u:string)=>{await save('player',{...crop.p.d,pic:u},crop.p.id);setCrop(null)}}/>}<h1>Players</h1>
     {!ps.length&&<p className="n">Create the two of you to get started.</p>}
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
       <label className="avatar-btn"><Avatar p={p} size={44}/><input type="file" accept="image/*" className="file" onChange={e=>pickPic(e,p)}/></label>

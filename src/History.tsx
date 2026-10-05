@@ -15,7 +15,7 @@ export default function History(){
   const delRack=async(s:any,r:number)=>{if(!confirm(`Delete rack ${r}? Later racks are renumbered and the score updates.`))return;
     for(const x of await db.recs.filter(q=>!q.del&&q.d?.s===s.id&&q.d.rack!=null).toArray()){if(x.d.rack===r)await drop(x.id);else if(x.d.rack>r)await save(x.type,{...x.d,rack:x.d.rack-1},x.id)}};
   const nm=(id:string)=>ps.find(p=>p.id===id)?.d.name??'?';
-  return <><h1>Match history</h1>{!ss.length&&<p className="n">No sessions yet.</p>}
+  return <>{!ss.length&&<p className="n">No sessions yet.</p>}
     {ss.map(s=>{
       const pl:string[]=s.d.players,evs=all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)),st=derive(pl,evs);
       const ro=pl.map(p=>evs.filter(e=>e.type==='visit'&&e.d.by===p&&e.d.runout).length);
@@ -23,6 +23,6 @@ export default function History(){
       return <div className="card" key={s.id}><button className="hist" onClick={()=>setOpen(open===s.id?'':s.id)}>
         <div className="hdr"><b>{new Date(s.d.start).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}{!s.d.end&&' · in progress'}</b><b>{nm(pl[0])} {st.scores[0]} – {st.scores[1]} {nm(pl[1])}</b></div>
         <div className="n">{vn(s)||'No venue'}{s.d.table?` · table ${s.d.table}`:''} · {racks.length} rack{racks.length===1?'':'s'} · run-outs: {nm(pl[0])} {ro[0]}, {nm(pl[1])} {ro[1]}</div></button>
-        {open===s.id&&<div className="log">{racks.map(r=>{const w=evs.find(e=>e.d.rack===r&&(e.d.won||e.d.nine));
-          return <div key={r}><div className="rh">Rack {r} · {w?nm(w.d.by)+' won':'in progress'}<button className="link" style={{marginLeft:8,fontSize:11}} onClick={()=>delRack(s,r)}>Delete rack</button></div>{evs.filter(e=>e.d.rack===r).map(e=><div className="v" key={e.id}>{line(e,nm)}</div>)}</div>})}<button className="ghost" style={{marginTop:12}} onClick={()=>delSession(s)}>Delete session</button></div>}</div>})}</>;
+        {open===s.id&&<div className="log">{[...racks].reverse().map(r=>{const w=evs.find(e=>e.d.rack===r&&(e.d.won||e.d.nine));
+          return <div key={r}><div className="rh">Rack {r} · {w?nm(w.d.by)+' won':'in progress'}<button className="link" style={{marginLeft:8,fontSize:11}} onClick={()=>delRack(s,r)}>Delete rack</button></div>{evs.filter(e=>e.d.rack===r).reverse().map(e=><div className="v" key={e.id}>{line(e,nm)}</div>)}</div>})}<button className="ghost" style={{marginTop:12}} onClick={()=>delSession(s)}>Delete session</button></div>}</div>})}</>;
 }

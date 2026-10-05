@@ -16,7 +16,7 @@ export default function App(){
     <nav><b className="brand">Chalk Talk</b>{(Object.keys(LABEL) as Tab[]).map(t=><button key={t} className={tab===t?'on':''} onClick={()=>setTab(t)}>{LABEL[t]}</button>)}</nav></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
-function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Sessions'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
+function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<div className="card"><b>Coming soon</b><div className="n">Run-out rates, balls run, and break tables will appear here once the stats build lands.</div></div>}</>}
 function More(){
   const [v,setV]=useState('');const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];

@@ -5,8 +5,8 @@ export const getCfg=():Cfg=>JSON.parse(localStorage.getItem('ct.cfg')||'{"repo":
 export const setCfg=(c:Cfg)=>localStorage.setItem('ct.cfg',JSON.stringify(c));
 const b64=(s:string)=>btoa(unescape(encodeURIComponent(s)));
 const unb64=(s:string)=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
-// One file per session (sessions/<id>.json: the session, its breaks, visits, flags) plus players.json.
-const fileOf=(r:Rec)=>r.type==='player'||r.type==='venue'?'players.json':r.type==='shot'?'catalogue.json':`sessions/${r.type==='session'?r.id:r.d.s}.json`;
+// One file per session (sessions/<id>.json: the session, its breaks, visits, flags), players.json, catalogue.json (shots + decks), and practice/<id>.json (a practice session + its attempts).
+const fileOf=(r:Rec)=>r.type==='player'||r.type==='venue'?'players.json':r.type==='shot'||r.type==='deck'?'catalogue.json':r.type==='practice'||r.type==='attempt'?`practice/${r.type==='practice'?r.id:r.d.s}.json`:`sessions/${r.type==='session'?r.id:r.d.s}.json`;
 const strip=(r:Rec)=>({id:r.id,type:r.type,u:r.u,del:r.del,d:r.d});
 export async function sync(say:(m:string)=>void){
   const c=getCfg();if(!c.repo||!c.token)throw new Error('Set up sync first (Sync tab).');
@@ -19,7 +19,7 @@ export async function sync(say:(m:string)=>void){
   const files:{path:string;sha:string;type:string}[]=t.ok?(await t.json()).tree:[];
   let pulled=0,pushed=0;
   for(const f of files){
-    if(f.type!=='blob'||!(f.path==='players.json'||f.path==='catalogue.json'||/^sessions\/[^/]+\.json$/.test(f.path)))continue;
+    if(f.type!=='blob'||!(f.path==='players.json'||f.path==='catalogue.json'||/^(sessions|practice)\/[^/]+\.json$/.test(f.path)))continue;
     known[f.path]=known[f.path]&&known[f.path]===f.sha?f.sha:f.sha;
     if(localStorage.getItem('ct.seen:'+f.path)===f.sha)continue;
     say(`Pulling ${f.path}…`);

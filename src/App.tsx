@@ -6,6 +6,7 @@ import Avatar from './Avatar';
 import Cropper from './Cropper';
 import Stats from './Review';
 import Shots from './Shots';
+import Decks from './Decks';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
@@ -20,10 +21,11 @@ const ICONS:Record<Tab,any>={
   more:<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>};
 export default function App(){
   const [tab,setTab]=useState<Tab>('play');
-  return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<Shots/>:<More/>}</main>
+  return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<ShotsHome/>:<More/>}</main>
     <nav>{(Object.keys(ICONS) as Tab[]).map(t=><button key={t} aria-label={LABEL[t]} className={tab===t?'on':''} onClick={()=>setTab(t)}>{ICONS[t]}</button>)}</nav></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
+function ShotsHome(){const [v,setV]=useState('shots'),seg=<Seg items={[['shots','Shots'],['decks','Decks']]} cur={v} set={setV}/>;return v==='shots'?<Shots seg={seg}/>:<Decks seg={seg}/>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
 function More(){

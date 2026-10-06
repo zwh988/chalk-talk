@@ -6,7 +6,7 @@ const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
 const BR=1.125,DIA=2.25;
 const SPEEDS=['Pocket speed','Soft','Medium','Firm','Max power'];
-const blank=()=>({no:0,tag:'',tagNo:0,name:'',by:'',balls:[{n:0,x:25,y:25}],target:null as number|null,pocket:null as number|null,path:[] as any[],tip:[100,100],speed:2,leave:null as any,note:''});
+const blank=()=>({no:0,tag:'',name:'',by:'',balls:[{n:0,x:25,y:25}],target:null as number|null,pocket:null as number|null,path:[] as any[],tip:[100,100],speed:2,leave:null as any,note:''});
 // Ghost ball, cut angle and distances are derived from the diagram, never typed in.
 export function measure(d:any){
   const o=d.balls.find((b:any)=>b.n===d.target),c=d.balls.find((b:any)=>b.n===0);
@@ -19,7 +19,8 @@ export function measure(d:any){
   const rails=d.path.filter((q:any)=>q.x===0||q.x===100||q.y===0||q.y===50).length;
   return {g,route:[{x:o.x,y:o.y},{x:p[0],y:p[1]}],cut:Math.acos(Math.max(-1,Math.min(1,dot)))*180/Math.PI,cue:A,obj:L,after,rails,tan:tl>1e-3?{x:tx/tl,y:ty/tl}:null};
 }
-export const title=(d:any)=>d.tag?`${d.tag}${d.tagNo?` #${d.tagNo}`:''}${d.name?`: ${d.name}`:''}`:`#${d.no}${d.name?`: ${d.name}`:''}`;
+export const tagNums=(ss:any[],cur?:any)=>{const m=new Map<string,number>(),c:any={},a=[...ss.filter(x=>!cur||x.id!==cur.id),...(cur?[cur]:[])].filter(x=>(x.d.tag||'').trim()).sort((x,y)=>x.d.no-y.d.no||(x.u||0)-(y.u||0));a.forEach(x=>{const t=x.d.tag.trim();m.set(x.id,c[t]=(c[t]||0)+1)});return m};
+export const title=(d:any,n?:number)=>d.tag?`${d.tag}${n?` #${n}`:''}${d.name?`: ${d.name}`:''}`:`#${d.no}${d.name?`: ${d.name}`:''}`;
 export const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
 export function Tip({tip,set}:any){
   const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width*200-100,dy=(e.clientY-r.top)/r.height*200-100,d=Math.hypot(dx,dy),f=d>78?78/d:1;set([100+dx*f,100+dy*f])};
@@ -48,6 +49,7 @@ function Table({d,sel,handlers,small}:any){
 }
 function Editor({init,id,players,shots,onDone}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
+  const tn=tagNums(shots,{id:id||'_',d});
   const drag=useRef<any>(null);
   const pt=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*110-5,y:(e.clientY-r.top)/r.height*60-5}};
   const hit=(p:any)=>d.balls.map((b:any)=>({b,k:Math.hypot(b.x-p.x,b.y-p.y)})).filter((h:any)=>h.k<4).sort((a:any,b:any)=>a.k-b.k)[0]?.b;
@@ -74,7 +76,7 @@ function Editor({init,id,players,shots,onDone}:any){
   const m=measure(d);
   const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
-    <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d)}</b></div>
+    <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d,tn.get(id||'_'))}</b></div>
     <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=null}}}/>
       <div className="row" style={{marginTop:8}}>{['balls','target','leave','path'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
       <div className="n">{hint[mode]}</div>
@@ -92,7 +94,7 @@ function Editor({init,id,players,shots,onDone}:any){
       <label>Name (optional)<input value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="e.g. Long cut to the 7"/></label>
       <label>Shot by<select value={d.by} onChange={e=>setD({...d,by:e.target.value})}>{players.map((p:any)=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Note<input value={d.note} onChange={e=>setD({...d,note:e.target.value})}/></label>
-      <button className="go" onClick={async()=>{const tg=(d.tag||'').trim();let no=0;if(tg)no=(id&&init.tag===tg&&init.tagNo)?init.tagNo:Math.max(0,...shots.filter((x:any)=>x.id!==id&&x.d.tag===tg).map((x:any)=>x.d.tagNo||0))+1;await save('shot',{...d,tag:tg,tagNo:no},id);onDone()}}>Save shot</button>
+      <button className="go" onClick={async()=>{const {tagNo,...r}=d;await save('shot',{...r,tag:(d.tag||'').trim()},id);onDone()}}>Save shot</button>
       {id&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm('Delete this shot?')&&drop(id).then(onDone)}>Delete shot</button>}</div></>;
 }
 export default function Shots(){
@@ -100,13 +102,13 @@ export default function Shots(){
   const [f,setF]=useState('all'),[tf,setTf]=useState(''),[ed,setEd]=useState<any>(null);
   const nm=(id:string)=>ps.find(p=>p.id===id)?.d.name??'—';
   if(ed)return <Editor key={ed.id||'new'} id={ed.id} init={ed.d} players={ps} shots={ss} onDone={()=>setEd(null)}/>;
-  const next=Math.max(0,...ss.map(s=>s.d.no))+1,list=ss.filter(s=>(f==='all'||s.d.by===f)&&(!tf||s.d.tag===tf)).sort((a,b)=>a.d.no-b.d.no);
+  const tn=tagNums(ss),next=Math.max(0,...ss.map(s=>s.d.no))+1,list=ss.filter(s=>(f==='all'||s.d.by===f)&&(!tf||s.d.tag===tf)).sort((a,b)=>a.d.no-b.d.no);
   return <><div className="hdr"><h1>Shots</h1><button className="go sm" onClick={()=>setEd({d:{...blank(),no:next,by:ps[0]?.id||''}})}>New shot</button></div>
     <select value={f} onChange={e=>setF(e.target.value)} style={{marginBottom:12}}><option value="all">All players</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
     <select value={tf} onChange={e=>setTf(e.target.value)} style={{marginBottom:12}}><option value="">All tags</option>{[...new Set(ss.map(s=>s.d.tag).filter(Boolean))].sort().map((x:any)=><option key={x} value={x}>{x}</option>)}</select>
     {!list.length&&<p className="n">No shots yet. Tap New shot to diagram one.</p>}
     {list.map(s=>{const m=measure(s.d);return <button key={s.id} className="card shotcard" onClick={()=>setEd(s)}>
       <div style={{width:140,flex:'none'}}><Table d={s.d} small/></div>
-      <div><b>{title(s.d)}</b><div className="n">by {nm(s.d.by)} · {SPEEDS[s.d.speed]}</div>
+      <div><b>{title(s.d,tn.get(s.id))}</b><div className="n">by {nm(s.d.by)} · {SPEEDS[s.d.speed]}</div>
         {m&&<div className="n">Cut {Math.round(m.cut)}° · cue {dm(m.cue)}◇ · object {dm(m.obj)}◇</div>}</div></button>})}</>;
 }

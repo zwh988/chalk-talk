@@ -9,6 +9,7 @@ export function applyTheme(){
   if(m==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
   const t=load()[eff()]||{};
   ALL.forEach(v=>t[v]?root.style.setProperty(v,t[v]):root.style.removeProperty(v));
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content',cur('--bg')||'#14575a');
 }
 export const setMode=(m:Mode)=>{localStorage.setItem('ct.mode',m);applyTheme()};
 export function setVar(v:string,val:string){const all=load();all[eff()]={...(all[eff()]||{}),[v]:val};localStorage.setItem('ct.theme',JSON.stringify(all));applyTheme()}

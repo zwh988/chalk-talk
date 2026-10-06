@@ -98,7 +98,7 @@ function VisitForm({st,sid,name,other}:any){
   const [open,setOpen]=useState(''),[board,setBoard]=useState(st.prob?.length?'Problem':'Clear'),[prob,setProb]=useState<number[]>(st.prob||[]),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
   const [cause,setCause]=useState(''),[fl,setFl]=useState<number[]>([]),[fg,setFg]=useState(0),[fp,setFp]=useState(false),[ask,setAsk]=useState(false);
   const by=st.shooter,o=other(by),push=res==='Push out';
-  const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Safe played','Escape hit','Missed','Foul',...p]:['Won rack','Missed','Safe played','Foul',...p]};
+  const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Won rack','Safe played','Escape hit','Missed','Foul',...p]:['Won rack','Missed','Safe played','Foul',...p]};
   const auto=(n:number[],rs:string,op:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(op&&n.length?'Missed':'');
   const rem=st.table.filter((x:number)=>!P.includes(x)),won=P.includes(9);
   const sorted=srt(st.table);let j=0;while(j<sorted.length&&P.includes(sorted[j]))j++;

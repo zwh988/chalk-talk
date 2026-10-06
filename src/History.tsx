@@ -25,6 +25,15 @@ export default function History(){
       return <div className="card" key={s.id}><button className="hist" onClick={()=>setOpen(open===s.id?'':s.id)}>
         <div className="hdr"><b>{s.d.name||new Date(s.d.start).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}{!s.d.end&&' · in progress'}</b><b style={{display:'flex',alignItems:'center',gap:6}}><Avatar p={pp(pl[0])} size={24}/>{nm(pl[0])} {st.scores[0]} – {st.scores[1]} {nm(pl[1])}<Avatar p={pp(pl[1])} size={24}/></b></div>
         <div className="n">{s.d.name&&new Date(s.d.start).toLocaleDateString(undefined,{month:'short',day:'numeric'})+' · '}{vn(s)||'No venue'}{s.d.table?` · table ${s.d.table}`:''} · {racks.length} rack{racks.length===1?'':'s'} · run-outs: {nm(pl[0])} {ro[0]}, {nm(pl[1])} {ro[1]}</div></button>
-        {open===s.id&&<div className="log">{[...racks].reverse().map(r=>{const w=evs.find(e=>e.d.rack===r&&(e.d.won||e.d.nine));
+        {open===s.id&&<div className="log"><EditSession s={s} vs={vs}/>{[...racks].reverse().map(r=>{const w=evs.find(e=>e.d.rack===r&&(e.d.won||e.d.nine));
           return <div key={r}><div className="rh">Rack {r} · {w?nm(w.d.by)+' won':'in progress'}<button className="link" style={{marginLeft:8,fontSize:11}} onClick={()=>delRack(s,r)}>Delete rack</button></div>{evs.filter(e=>e.d.rack===r).reverse().map(e=><div className="v" key={e.id}>{line(e,nm)}</div>)}</div>})}<button className="ghost" style={{marginTop:12}} onClick={()=>delSession(s)}>Delete session</button></div>}</div>})}</>;
+}
+
+function EditSession({s,vs}:any){
+  const [on,setOn]=useState(false),[name,setName]=useState(s.d.name||''),[vid,setVid]=useState(s.d.venueId||''),[tbl,setTbl]=useState(s.d.table||'');
+  if(!on)return <button className="ghost" style={{marginBottom:8}} onClick={()=>setOn(true)}>Edit details</button>;
+  return <div className="card"><label>Session name<input value={name} onChange={e=>setName(e.target.value)}/></label>
+    <label>Venue<select value={vid} onChange={e=>setVid(e.target.value)}><option value="">No venue</option>{vs.map((v:any)=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>
+    <label>Table number<input value={tbl} onChange={e=>setTbl(e.target.value)}/></label>
+    <div className="row"><button className="ghost" onClick={()=>setOn(false)}>Cancel</button><button className="go sm" style={{flex:1}} onClick={async()=>{await save('session',{...s.d,name:name.trim(),venueId:vid,venue:vid?(vs.find((v:any)=>v.id===vid)?.d.name??''):'',table:tbl},s.id);setOn(false)}}>Save</button></div></div>;
 }

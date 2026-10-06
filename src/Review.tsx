@@ -2,38 +2,53 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,ofType} from './db';
 import {playerStats,breakStats} from './stats';
-const pc=(w:number,n:number)=>n?Math.round(w/n*100)+'%':'—';
-const Row=({l,w,n,raw}:any)=><div className={'srow'+(raw==null&&n<5?' dim':'')}><span>{l}</span><span><b>{raw??pc(w,n)}</b>{raw==null&&<span className="n"> {w}/{n}</span>}</span></div>;
-const TRow=({l,g}:any)=><div className={'srow'+(g.n<5?' dim':'')}><span>{l}</span><span className="n">n={g.n} · 1-ball {pc(g.one,g.n)} · droppers {g.n?(g.drops/g.n).toFixed(1):'—'} · scratch {pc(g.scr,g.n)}</span></div>;
-const Z=['L3','L2','L1','C','R1','R2','R3'];
+import {attrs,rating,rankOf,progress,ATTRS,PROV} from './rating';
+import Avatar from './Avatar';
+const pc=(w:number,n:number)=>n?Math.round(w/n*100):0;
+const Donut=({w,n,label}:any)=>{const p=n?w/n:0,r=34,c=2*Math.PI*r;return <div style={{textAlign:'center',opacity:n<5?.45:1}}><svg viewBox="0 0 90 90" width="96"><circle cx="45" cy="45" r={r} fill="none" stroke="var(--chip)" strokeWidth="11"/><circle cx="45" cy="45" r={r} fill="none" stroke="var(--cloth)" strokeWidth="11" strokeLinecap="round" strokeDasharray={`${p*c} ${c}`} transform="rotate(-90 45 45)"/><text x="45" y="50" textAnchor="middle" fontSize="17" fontWeight="800" fill="var(--ink)">{n?Math.round(p*100)+'%':'—'}</text></svg><div className="n">{label}<br/>{w}/{n}</div></div>};
+const HBar=({l,w,n}:any)=><div style={{opacity:n<5?.45:1,margin:'8px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{l}</span><span><b>{n?pc(w,n)+'%':'—'}</b> <span className="n">{w}/{n}</span></span></div><div className="bar"><i style={{width:pc(w,n)+'%'}}/></div></div>;
+const Cols=({vals,labels}:any)=>{const m=Math.max(1,...vals),W=300/vals.length;return <svg viewBox="0 0 300 100" style={{width:'100%'}}>{vals.map((v:number,i:number)=><g key={i}><rect x={i*W+6} y={80-v/m*66} width={W-12} height={v/m*66} rx="3" fill="var(--cloth)"/><text x={i*W+W/2} y="95" textAnchor="middle" fontSize="9" fill="var(--mute)">{labels[i]}</text>{v>0&&<text x={i*W+W/2} y={76-v/m*66} textAnchor="middle" fontSize="9" fill="var(--ink)">{v}</text>}</g>)}</svg>};
+const pt=(i:number,v:number)=>{const a=(-90+60*i)*Math.PI/180,r=v/100*80;return [150+r*Math.cos(a),150+r*Math.sin(a)]};
+const poly=(v:number[])=>v.map((x,i)=>pt(i,x).join(',')).join(' ');
+const Radar=({a,b}:any)=><svg viewBox="0 0 300 300" style={{width:'100%',maxWidth:340,display:'block',margin:'auto'}}>{[33,66,100].map(k=><polygon key={k} points={poly(Array(6).fill(k))} fill="none" stroke="var(--line)"/>)}
+  {ATTRS.map((n,i)=>{const [x,y]=pt(i,100),[lx,ly]=pt(i,122);return <g key={n}><line x1="150" y1="150" x2={x} y2={y} stroke="var(--line)"/><text x={lx} y={ly+4} textAnchor="middle" fontSize="11" fill="var(--mute)">{n}</text></g>})}
+  {b&&<polygon points={poly(b)} fill="var(--amber)" fillOpacity=".12" stroke="var(--amber)" strokeWidth="2" strokeDasharray="5 4"/>}<polygon points={poly(a)} fill="var(--cloth)" fillOpacity=".3" stroke="var(--cloth)" strokeWidth="2.5"/></svg>;
+const TRow=({l,g}:any)=><div className={'srow'+(g.n<5?' dim':'')}><span>{l}</span><span className="n">n={g.n} · 1-ball {pc(g.one,g.n)}% · droppers {g.n?(g.drops/g.n).toFixed(1):'—'} · scratch {pc(g.scr,g.n)}%</span></div>;
+const Z=['L3','L2','L1','C','R1','R2','R3'],CC=['var(--cloth)','var(--amber)','#c4513d','#8aa3a5'];
 export default function Stats({kind}:{kind:string}){
-  const ps=useLiveQuery(()=>ofType('player'),[])||[];
+  const ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
   const all=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del).toArray(),[])||[];
-  const [pid,setPid]=useState(''),[win,setWin]=useState('4');
-  const sel=pid||ps[0]?.id;
-  const mine=ss.filter(s=>s.d.players.includes(sel)&&all.some(e=>e.d.s===s.id));
-  const use=win==='all'?mine:mine.slice(0,4);
-  const groups=use.map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
+  const [pid,setPid]=useState(''),[win,setWin]=useState('4'),[cmp,setCmp]=useState('');
   if(!ps.length)return <p className="n">Add players and log a session first.</p>;
+  const sel=pid||ps[0].id,me=ps.find(p=>p.id===sel);
+  const gr=(id:string)=>ss.filter(s=>s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
+  const mine=gr(sel),groups=win==='all'?mine:mine.slice(0,4);
   const s=kind==='players'?playerStats(sel,groups):null,b=kind==='breaks'?breakStats(sel,groups):null;
   const cnt=(o:any)=>`Easy ${o.Easy} · Hard ${o.Hard} · No shot ${o.None}`;
+  const at=attrs(sel,mine),R=rating(at),pg=progress(R),ca=cmp?attrs(cmp,gr(cmp)):null;
+  const cur=attrs(sel,mine.slice(0,4)),prev=attrs(sel,mine.slice(4,8));
+  const tr=(i:number)=>prev[i].n>=PROV[i]/2&&cur[i].n>0?Math.round(cur[i].raw-prev[i].raw):null;
   return <>
-    <div className="row" style={{marginBottom:8}}>{ps.filter(p=>!p.d.archived).map(p=><button key={p.id} className={'chip'+(sel===p.id?' on':'')} onClick={()=>setPid(p.id)}>{p.d.name}</button>)}</div>
-    <div className="row" style={{marginBottom:6}}>{[['4','Last 4 sessions'],['all','All time']].map(([k,l])=><button key={k} className={'chip'+(win===k?' on':'')} onClick={()=>setWin(k)}>{l}</button>)}</div>
-    <div className="n" style={{marginBottom:10}}>{use.length} session{use.length===1?'':'s'} · greyed rows have fewer than 5 observations</div>
+    <select value={sel} onChange={e=>setPid(e.target.value)} style={{marginBottom:8}}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
+    <select value={win} onChange={e=>setWin(e.target.value)} style={{marginBottom:6}}><option value="4">Last 4 sessions</option><option value="all">All time</option></select>
+    <div className="n" style={{marginBottom:10}}>{groups.length} session{groups.length===1?'':'s'} · faded graphs have fewer than 5 observations</div>
     {s&&<>
-      <div className="card"><h2>Run-out from chance</h2><Row l="All chances (Easy or Hard)" w={s.won} n={s.shot}/>
-        {['Easy/Clear','Easy/Problem','Hard/Clear','Hard/Problem'].map(k=>{const g=s.grid[k]||{n:0,w:0};return <Row key={k} l={k.replace('/',' · ')} w={g.w} n={g.n}/>})}</div>
-      <div className="card"><h2>Balls run</h2><Row l="Conversion (potted ÷ on table)" w={s.potted} n={s.onTable}/>
-        {['0 balls','1–2 balls','3–4 balls','5+ balls'].map((l,i)=><Row key={l} l={l} w={s.dist[i]} n={s.shot}/>)}</div>
-      <div className="card"><h2>Where visits end (misses)</h2>{[1,2,3,4,5,6,7,8,9].map(i=>{const m=Math.max(1,...s.low);return <div className="srow" key={i}><span>Ball {i}</span><span style={{flex:1,margin:'0 10px'}}><div className="bar"><i style={{width:(s.low[i]/m*100)+'%'}}/></div></span><b>{s.low[i]}</b></div>})}</div>
-      <div className="card"><h2>Miss and foul causes</h2>{Object.keys(s.cause).map(k=><Row key={k} l={k} raw={s.cause[k]}/>)}</div>
-      <div className="card"><h2>Defence and discipline</h2><Row l="Safeties held" w={s.held} n={s.safe}/>{s.pending>0&&<div className="n">{s.pending} safe{s.pending>1?'s':''} pending the opponent's next visit</div>}
-        <Row l="Escapes hit" raw={s.escape}/><Row l="Fouls" raw={s.fouls}/><Row l="Flukes" raw={s.fluke}/></div>
-      <div className="card"><h2>Racks</h2><Row l="Racks won" w={s.rackWins} n={s.racks}/><Row l="Run-outs" raw={s.runouts}/></div></>}
+      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1}}><div className="n">{me?.d.name} · all sessions</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}</div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}</div><div style={{fontSize:46,fontWeight:900,color:'var(--cloth)'}}>{rankOf(R)}</div></div>
+        <div className="bar" style={{margin:'10px 0'}}><i style={{width:pg.pct*100+'%'}}/></div>
+        <Radar a={at.map(x=>x.adj)} b={ca?ca.map(x=>x.adj):null}/>
+        <select value={cmp} onChange={e=>setCmp(e.target.value)} style={{marginTop:8}}><option value="">Compare with…</option>{ps.filter(p=>p.id!==sel).map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
+        {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{Math.round(at[i].adj)}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:at[i].adj+'%'}}/></div></div>)}</div>
+      <div className="card"><h2>Run-out from chance</h2><div className="row" style={{justifyContent:'center'}}><Donut w={s.won} n={s.shot} label="all chances"/></div>
+        {['Easy/Clear','Easy/Problem','Hard/Clear','Hard/Problem'].map(k=>{const g=s.grid[k]||{n:0,w:0};return <HBar key={k} l={k.replace('/',' · ')} w={g.w} n={g.n}/>})}</div>
+      <div className="card"><h2>Balls run</h2><div className="row" style={{justifyContent:'center'}}><Donut w={s.potted} n={s.onTable} label="conversion"/></div><div className="n" style={{textAlign:'center'}}>Balls potted per chance visit</div><Cols vals={s.dist} labels={['0','1–2','3–4','5+']}/></div>
+      <div className="card"><h2>Where visits end</h2><Cols vals={s.low.slice(1)} labels={[1,2,3,4,5,6,7,8,9]}/></div>
+      <div className="card"><h2>Miss and foul causes</h2>{(()=>{const k=Object.keys(s.cause),t=k.reduce((a,x)=>a+s.cause[x],0);return t?<><div style={{display:'flex',height:16,borderRadius:8,overflow:'hidden'}}>{k.map((x,i)=><div key={x} style={{flex:s.cause[x],background:CC[i]}}/>)}</div><div className="row" style={{marginTop:8}}>{k.map((x,i)=><span key={x} className="n"><i style={{display:'inline-block',width:10,height:10,borderRadius:3,background:CC[i],marginRight:4}}/>{x} {s.cause[x]}</span>)}</div></>:<div className="n">No causes logged yet.</div>})()}</div>
+      <div className="card"><h2>Defence and discipline</h2><HBar l="Safeties held" w={s.held} n={s.safe}/>{s.pending>0&&<div className="n">{s.pending} pending the opponent's next visit</div>}
+        <div className="row" style={{marginTop:8}}>{[['Escapes hit',s.escape],['Fouls',s.fouls],['Flukes',s.fluke],['Run-outs',s.runouts]].map(([l,v])=><div key={l as string} className="chip" style={{cursor:'default'}}><b style={{fontSize:20}}>{v}</b><small>{l}</small></div>)}</div></div>
+      <div className="card"><h2>Racks</h2><div className="row" style={{justifyContent:'center'}}><Donut w={s.rackWins} n={s.racks} label="racks won"/></div></div></>}
     {b&&<>
-      <div className="card"><h2>Break summary</h2><Row l="Breaks logged" raw={b.n}/><Row l="1-ball pocketed" w={b.one} n={b.n}/><Row l="Scratch" w={b.scratch} n={b.n}/><Row l="Golden break" w={b.golden} n={b.n}/><Row l="Avg other droppers" raw={b.n?(b.drops/b.n).toFixed(2):'—'}/></div>
+      <div className="card"><h2>Break summary</h2><div className="row" style={{justifyContent:'space-around'}}><Donut w={b.one} n={b.n} label="1-ball pocketed"/><Donut w={b.scratch} n={b.n} label="scratch"/><Donut w={b.golden} n={b.n} label="golden"/></div><div className="n" style={{textAlign:'center',marginTop:6}}>{b.n} breaks · {b.n?(b.drops/b.n).toFixed(2):'—'} balls dropped each</div></div>
       <div className="card"><h2>Opening shot after the break</h2><div className="srow"><span>Breaker shot</span><span className="n">{cnt(b.open.brk)}</span></div><div className="srow"><span>Opponent shot</span><span className="n">{cnt(b.open.opp)}</span></div></div>
       <div className="card"><h2>By position</h2>{Z.map((l,i)=><TRow key={l} l={l} g={b.zone[i]}/>)}</div>
       <div className="card"><h2>By contact</h2>{Object.keys(b.con).sort().map(k=><TRow key={k} l={k} g={b.con[k]}/>)}{!Object.keys(b.con).length&&<div className="n">No breaks with contact logged yet.</div>}</div></>}

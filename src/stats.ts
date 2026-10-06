@@ -1,7 +1,7 @@
 import type {Rec} from './db';
 const ALL=[1,2,3,4,5,6,7,8,9];
 // Replays one session's events so each visit knows how many balls were on the table when it began.
-function walk(evs:Rec[]){
+export function walk(evs:Rec[]){
   let table=[...ALL];const out:any[]=[];
   for(const e of evs){const d=e.d;
     if(e.type==='break'){out.push({e,kind:'break'});const gone=new Set<number>(d.nine?[]:[...(d.one===0?[1]:[]),...(d.drops||[])]);table=ALL.filter(x=>!gone.has(x))}

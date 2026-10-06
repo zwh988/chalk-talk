@@ -50,10 +50,10 @@ const POW=['Pocket speed','Very soft','Soft','Medium','Firm','Hard','Max power']
 export const pw=(d:any)=>d.pw??Math.round((d.speed??2)*6/4);   // legacy 5-step speed mapped onto 7 steps
 function Power({v,set}:any){
   const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();set(Math.max(0,Math.min(6,6-Math.floor((e.clientY-r.top)/r.height*7))))};
-  return <div style={{textAlign:'center'}}><div className="n">Power</div>
+  return <div style={{textAlign:'center',width:96,flex:'none'}}><div className="n">Power</div>
     <div style={{width:44,height:170,display:'flex',flexDirection:'column-reverse',gap:3,touchAction:'none',margin:'4px auto'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
       {POW.map((_,i)=><div key={i} style={{flex:1,borderRadius:4,background:i<=v?`hsl(${150-i*22} 55% 45%)`:'var(--chip)'}}/>)}</div>
-    <div className="n"><b>{v+1}/7</b><br/>{POW[v]}</div></div>;
+    <div className="n" style={{height:18,whiteSpace:'nowrap'}}><b>{POW[v]}</b></div></div>;
 }
 function Editor({init,id,players,shots,onDone}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
@@ -96,7 +96,7 @@ function Editor({init,id,players,shots,onDone}:any){
     <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span>{m.after>0&&<span className="tag g">Cue ball after contact {dm(m.after)} diamonds{m.rails?` · ${m.rails} rail${m.rails>1?'s':''}`:''}</span>}</div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
       {m&&m.cut>85&&<div className="n">Cut over 85° · not makeable</div>}</div>
     <div className="card"><h2>Cue ball</h2><div style={{display:'flex',gap:18,alignItems:'center',justifyContent:'center'}}>
-      <div><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center'}}>{tipLabel(d.tip)}</div></div>
+      <div style={{width:170,flex:'none'}}><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center',height:18,whiteSpace:'nowrap'}}>{tipLabel(d.tip)}</div></div>
       <Power v={pw(d)} set={(i:number)=>setD({...d,pw:i})}/></div></div>
     <div className="card"><label>Tag (optional)<input list="tags" value={d.tag||''} onChange={e=>setD({...d,tag:e.target.value})} placeholder="e.g. Bank, Cut, Safety"/></label><datalist id="tags">{[...new Set(shots.map((x:any)=>x.d.tag).filter(Boolean))].map((x:any)=><option key={x} value={x}/>)}</datalist>
       <label>Name (optional)<input value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="e.g. Long cut to the 7"/></label>

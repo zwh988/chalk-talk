@@ -21,12 +21,12 @@ export function measure(d:any){
 }
 export const title=(d:any,all:any[],id?:string)=>{const tg=(d.tag||'').toLowerCase(),n=d.tag?all.filter(x=>x.id!==id&&(x.d.tag||'').toLowerCase()===tg&&(x.d.no<d.no||(x.d.no===d.no&&x.id<(id||'~')))).length+1:0;return d.tag?`${d.tag} #${n}${d.name?`: ${d.name}`:''}`:`#${d.no}${d.name?`: ${d.name}`:''}`};
 export const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
-export function Tip({tip,set}:any){
+export function Tip({tip,set,size}:any){
   const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width*200-100,dy=(e.clientY-r.top)/r.height*200-100,d=Math.hypot(dx,dy),f=d>78?78/d:1;set([100+dx*f,100+dy*f])};
-  return <svg viewBox="0 0 200 200" style={{width:170,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
+  return <svg viewBox="0 0 200 200" style={{width:size||170,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
     <circle cx="100" cy="100" r="92" fill="#f5f2e8" stroke="#bbb" strokeWidth="2"/><line x1="100" y1="8" x2="100" y2="192" stroke="#ccc"/><line x1="8" y1="100" x2="192" y2="100" stroke="#ccc"/><circle cx={tip[0]} cy={tip[1]} r="9" fill="#c4513d"/></svg>;
 }
-const dm=(v:number)=>(v/12.5).toFixed(1);
+export const dm=(v:number)=>(v/12.5).toFixed(1);
 const dia=(x:number,y:number)=><polygon key={x+'_'+y} points={`${x},${y-1} ${x+1},${y} ${x},${y+1} ${x-1},${y}`} fill="#e8d9a8"/>;
 export function Table({d,sel,handlers,small}:any){
   const m=measure(d),cue=d.balls.find((b:any)=>b.n===0),r=small?2.4:BR;
@@ -105,9 +105,9 @@ function Editor({init,id,players,shots,onDone}:any){
       <button className="go" onClick={async()=>{let tg=(d.tag||'').trim();const ex=shots.find((x:any)=>x.d.tag&&x.d.tag.toLowerCase()===tg.toLowerCase());if(ex)tg=ex.d.tag;await save('shot',{...d,tag:tg,pw:pw(d),speed:undefined,tagNo:undefined},id);onDone()}}>Save shot</button>
       {id&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm('Delete this shot?')&&drop(id).then(onDone)}>Delete shot</button>}</div></>;
 }
-export const ShotCard=({s,all,nm,onClick}:any)=>{const m=measure(s.d);return <button className="card shotcard" onClick={onClick}>
+export const ShotCard=({s,all,nm,onClick,sub}:any)=>{const m=measure(s.d);return <button className="card shotcard" onClick={onClick}>
   <div style={{width:140,flex:'none'}}><Table d={s.d} small/></div>
-  <div><b>{title(s.d,all,s.id)}</b><div className="n">by {nm(s.d.by)} · {POW[pw(s.d)]}</div>
+  <div><b>{title(s.d,all,s.id)}</b><div className="n">by {nm(s.d.by)} · {POW[pw(s.d)]}</div>{sub&&<div className="n">{sub}</div>}
     {m&&<div className="n">Cut {Math.round(m.cut)}° · cue {dm(m.cue)}◇ · object {dm(m.obj)}◇</div>}</div></button>};
 export default function Shots({seg}:any){
   const ss=useLiveQuery(()=>ofType('shot'),[])||[],ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);

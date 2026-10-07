@@ -1,7 +1,7 @@
 import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
-import {Table,POW,pw,title} from './Shots';
+import {Table,Tip,POW,pw,title,measure,tipLabel,dm} from './Shots';
 import {blocks,pickNext,tally} from './practice';
 // practice {deck,deckName,by,venueId,venue,per,start,end?} · attempt {t,s(practice id),shot(id),by,n(1..per),ok}. Attempts are append-only; undo soft-deletes the last one.
 function Run({sid,pd,pool,all,pname,onExit}:any){
@@ -21,7 +21,13 @@ function Run({sid,pd,pool,all,pname,onExit}:any){
   return <><div className="hdr"><b>{pd.deckName}</b><button className="ghost" onClick={end}>End session</button></div>
     <div className="n">{pname(pd.by)} · {pd.venue||'No venue'} · {t.made}/{t.n} made</div>
     {!s?<div className="card"><p className="n">No shot available. End the session or add shots to the deck.</p></div>:<>
-      <div className="card"><h2>{title(s.d,all,s.id)}</h2><Table d={s.d} small/><div className="n">Power: {POW[pw(s.d)]}{s.d.note?` · ${s.d.note}`:''}</div></div>
+      {(()=>{const m=measure(s.d),w=pw(s.d);return <div className="card"><h2>{title(s.d,all,s.id)}</h2><Table d={s.d}/>
+        <div className="row" style={{flexWrap:'nowrap',gap:12,alignItems:'flex-start',marginTop:10}}>
+          <div style={{width:104,flex:'none',pointerEvents:'none'}}><Tip tip={s.d.tip} set={()=>{}} size={104}/><div className="n" style={{textAlign:'center'}}>{tipLabel(s.d.tip)}</div></div>
+          <div style={{flex:1,minWidth:0}}><div className="srow"><span>Power</span><b>{POW[w]}</b></div><div className="bar"><i style={{width:(w+1)/7*100+'%'}}/></div>
+            {m&&<><div className="srow"><span>Cut angle</span><b>{Math.round(m.cut)}°</b></div><div className="srow"><span>Cue → contact</span><b>{dm(m.cue)}◇</b></div><div className="srow"><span>Object → pocket</span><b>{dm(m.obj)}◇</b></div>
+              {m.after>0&&<div className="srow"><span>Cue after contact</span><b>{dm(m.after)}◇{m.rails>0?` · ${m.rails} rail${m.rails>1?'s':''}`:''}</b></div>}</>}</div></div>
+        {s.d.note&&<div className="n" style={{marginTop:8}}>{s.d.note}</div>}</div>})()}
       <div className="n" style={{textAlign:'center',margin:'8px 0'}}>Attempt {n} of {per}{mid&&<> · {at.slice(-run).map((a:any)=>a.d.ok?'●':'○').join(' ')}</>}</div>
       <div className="row" style={{gap:10,flexWrap:'nowrap'}}><button className="go" style={{flex:1,minHeight:64,fontSize:20}} onClick={()=>go(true)}>Made</button><button className="ghost" style={{flex:1,minHeight:64,fontSize:20}} onClick={()=>go(false)}>Missed</button></div></>}
     <button className="ghost" style={{marginTop:12}} disabled={!at.length} onClick={undo}>Undo last attempt</button></>;

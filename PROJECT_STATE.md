@@ -8,7 +8,7 @@
 - Shots: diagram editor (balls, target, leave, cue-ball path, tangent reference, cue tip, speed), measured cut/distances in diamonds, 7-level power, one tag per shot with derived per-tag numbering (deleting/retagging closes gaps), tag/player filters.
 - Decks (Shots → Decks): smart (tag and/or shot-by; no rule = whole catalogue) and custom decks, deck detail with shots, create/edit/delete.
 - Practice: pick player, venue, attempts per shot (default 3); full-scale diagram, cue tip, power, cut/distances; Made/Missed, undo, end any time; saved attempts per player+shot. Per-player stats (attempts, make %, last practiced, recent), progress chart, shots needing attention, delete a session or reset a player's deck history. Adaptive selection (weak/new/stale shots more often, mastered still appear, cooldown) with mastery and why-now shown.
-- Solo practice sessions (Player 2 = "Myself"): both seats logged as normal, shown as "Name" and "Name (2)", excluded from Review/rating (no include switch yet).
+- Solo practice sessions (Player 2 = "Myself"): both seats logged as normal, shown as "Name" and "Name (2)", counted in Review and rating (rack-win stats skipped); Review filter: All / Matches only / Solo only.
 - GitHub sync, PWA, theme presets + custom colours, status-bar colour follows theme.
 
 ## Just shipped, awaiting user test

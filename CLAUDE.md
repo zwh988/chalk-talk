@@ -54,7 +54,7 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 - Every stat shows its n; rows with n<5 are faded. Rating uses all sessions; trends compare last 4 vs previous 4 sessions.
 - Rating: attribute weights/shrinkage/anchors are placeholders pending real data. Ranks F D C B A S SS SSS (no +/−), SSS uncapped.
 - Undo = soft-delete the last event. Deleting a rack renumbers later racks.
-- Solo practice session (`solo:true`): you play both sides. Seat 2 is a virtual player id `<id>~2` so the engine/Live treat it as two players unchanged; **always resolve player ids through `id.split('~')[0]`** when looking up a player (App, History do). Solo sessions are excluded from Review stats and rating.
+- Solo practice session (`solo:true`): you play both sides. Seat 2 is a virtual player id `<id>~2` so the engine/Live treat it as two players unchanged; **always resolve player ids through `id.split('~')[0]`** when looking up a player (App, History do). Stats/rating use `isMe(by,pid)` (stats.ts) so both seats count as the player; break/next-visit comparisons use the break record's own `by` (not `pid`); rack results are skipped for solo (always "won"). Review has an All / Matches only / Solo only filter.
 - Practice: a shot is shown for `per` attempts in a row, then the next shot is picked. Ending early keeps logged attempts; unattempted shots are not recorded; an empty session is dropped. Mastery = last 10 attempts smoothed toward 50%; selection weight = (floor + need + staleness) × cooldown, never the same shot twice in a row (see `PC`).
 - Shot difficulty/measurements are derived from the diagram (ghost ball from target ball + pocket; distances in diamonds, 1 diamond = 12.5"); never typed in.
 

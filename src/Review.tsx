@@ -22,7 +22,7 @@ export default function Stats({kind}:{kind:string}){
   const [pid,setPid]=useState(''),[win,setWin]=useState('4'),[cmp,setCmp]=useState('');
   if(!ps.length)return <p className="n">Add players and log a session first.</p>;
   const sel=pid||ps[0].id,me=ps.find(p=>p.id===sel);
-  const gr=(id:string)=>ss.filter(s=>s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
+  const gr=(id:string)=>ss.filter(s=>!s.d.solo&&s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
   const mine=gr(sel),groups=win==='all'?mine:mine.slice(0,4);
   const s=kind==='players'?playerStats(sel,groups):null,b=kind==='breaks'?breakStats(sel,groups):null;
   const cnt=(o:any)=>`Easy ${o.Easy} · Hard ${o.Hard} · No shot ${o.None}`;

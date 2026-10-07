@@ -47,6 +47,8 @@ function Players(){
       <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
     <div className="card row"><input placeholder="New player name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><button className="go sm" onClick={add}>Add</button></div></>;
 }
+// Solo practice: seat 2 is a virtual player id `<id>~2`, so the engine sees two sides. Always look players up through base().
+const base=(id:string)=>id.split('~')[0];
 function Session(){
   const all=useLiveQuery(()=>ofType('player'),[])||[];
   const ps=all.filter(p=>!p.d.archived);
@@ -55,17 +57,17 @@ function Session(){
   const active=ss.find(s=>!s.d.end);
   const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [sname,setN]=useState('');const [tbl,setT]=useState('');
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
-  const nm=(id:string)=>all.find(p=>p.id===id)?.d.name??'?';
-  if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===id)} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
+  const nm=(id:string)=>(all.find(p=>p.id===base(id))?.d.name??'?')+(id.includes('~')?' (2)':'');
+  if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===base(id))} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
   const ok=a&&b&&a!==b;
   return <><h1>New session</h1>
-    {ps.length<2?<p className="n">Add at least two players on the Players tab first.</p>:<div className="card">
+    {!ps.length?<p className="n">Add a player on the Players tab first.</p>:<div className="card">
       <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
       <label>Player 1<select value={a} onChange={e=>setA(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
-      <label>Player 2<select value={b} onChange={e=>setB(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
+      <label>Player 2<select value={b} onChange={e=>setB(e.target.value)}><option value="">Choose…</option><option value="solo">Myself (solo practice)</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues on the Venues tab.</div>}
       <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
-      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:[a,b],venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
+      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:[a,b==='solo'?a+'~2':b],solo:b==='solo',venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
 }
 function Sync(){
   const [c,setC]=useState(getCfg());const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);

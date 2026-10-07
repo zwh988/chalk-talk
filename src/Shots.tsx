@@ -1,6 +1,7 @@
 import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {save,drop,ofType,uid} from './db';
+import Photo from './Photo';
 const BC=['#f5f2e8','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
@@ -48,12 +49,13 @@ export function Table({d,sel,handlers,small}:any){
 }
 export const POW=['Pocket speed','Very soft','Soft','Medium','Firm','Hard','Max power'];
 export const pw=(d:any)=>d.pw??Math.round((d.speed??2)*6/4);   // legacy 5-step speed mapped onto 7 steps
-function Power({v,set}:any){
-  const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();set(Math.max(0,Math.min(6,6-Math.floor((e.clientY-r.top)/r.height*7))))};
-  return <div style={{textAlign:'center'}}><div className="n">Power</div>
+// 7-step vertical bar. Steps below `min` stay visible but dimmed and can't be picked. Fixed width/label height so a changing label never moves neighbouring controls.
+export function Power({v,set,min=0}:any){
+  const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),i=Math.max(0,Math.min(6,6-Math.floor((e.clientY-r.top)/r.height*7)));if(i>=min)set(i)};
+  return <div style={{textAlign:'center',width:96,flex:'none'}}><div className="n">Power</div>
     <div style={{width:44,height:170,display:'flex',flexDirection:'column-reverse',gap:3,touchAction:'none',margin:'4px auto'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
-      {POW.map((_,i)=><div key={i} style={{flex:1,borderRadius:4,background:i<=v?`hsl(${150-i*22} 55% 45%)`:'var(--chip)'}}/>)}</div>
-    <div className="n"><b>{v+1}/7</b><br/>{POW[v]}</div></div>;
+      {POW.map((_,i)=><div key={i} style={{flex:1,borderRadius:4,background:i<=v?`hsl(${150-i*22} 55% 45%)`:'var(--chip)',opacity:i<min?.35:1}}/>)}</div>
+    <div className="n" style={{height:18,whiteSpace:'nowrap'}}><b>{POW[v]}</b></div></div>;
 }
 function Editor({init,id,players,shots,onDone,flag}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
@@ -84,7 +86,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
   const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
     <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d,shots,id)}</b></div>
-    {flag&&(flag.d.photo||flag.d.note)&&<div className="card">{flag.d.photo&&<img src={flag.d.photo} alt="" style={{width:'100%',maxHeight:220,objectFit:'cover',borderRadius:8}}/>}{flag.d.note&&<div className="n" style={{marginTop:6}}>Flag note: {flag.d.note}</div>}</div>}
+    {flag&&(flag.d.photo||flag.d.note)&&<div className="card">{flag.d.photo&&<Photo src={flag.d.photo} style={{width:'100%',height:'auto',maxHeight:'70vh',objectFit:'contain',borderRadius:8}}/>}{flag.d.note&&<div className="n" style={{marginTop:6}}>Flag note: {flag.d.note}</div>}</div>}
     <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=null}}}/>
       <div className="row" style={{marginTop:8}}>{['balls','target','leave','path'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
       <div className="n">{hint[mode]}</div>
@@ -97,7 +99,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
     <div className="card"><h2>Measured</h2>{m?<div className="tags"><span className="tag f">Cut {Math.round(m.cut)}°</span><span className="tag g">Cue ball travel {dm(m.cue)} diamonds</span><span className="tag g">Object ball travel {dm(m.obj)} diamonds</span>{m.after>0&&<span className="tag g">Cue ball after contact {dm(m.after)} diamonds{m.rails?` · ${m.rails} rail${m.rails>1?'s':''}`:''}</span>}</div>:<div className="n">Set a target ball and pocket to get the ghost ball, cut angle and distances.</div>}
       {m&&m.cut>85&&<div className="n">Cut over 85° · not makeable</div>}</div>
     <div className="card"><h2>Cue ball</h2><div style={{display:'flex',gap:18,alignItems:'center',justifyContent:'center'}}>
-      <div><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center'}}>{tipLabel(d.tip)}</div></div>
+      <div style={{width:170,flex:'none'}}><Tip tip={d.tip} set={(t:number[])=>setD({...d,tip:t})}/><div className="n" style={{textAlign:'center',height:18,whiteSpace:'nowrap'}}>{tipLabel(d.tip)}</div></div>
       <Power v={pw(d)} set={(i:number)=>setD({...d,pw:i})}/></div></div>
     <div className="card"><label>Tag (optional)<input list="tags" value={d.tag||''} onChange={e=>setD({...d,tag:e.target.value})} placeholder="e.g. Bank, Cut, Safety"/></label><datalist id="tags">{[...new Set(shots.map((x:any)=>x.d.tag).filter(Boolean))].map((x:any)=><option key={x} value={x}/>)}</datalist>
       <label>Name (optional)<input value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="e.g. Long cut to the 7"/></label>
@@ -119,7 +121,7 @@ function Flags({fgs,ss,onBack,onCreate}:any){
   const pend=fgs.filter((x:any)=>x.d.status!=='converted').sort((a:any,b:any)=>tm(b)-tm(a)),done=fgs.filter((x:any)=>x.d.status==='converted').sort((a:any,b:any)=>tm(b)-tm(a));
   return <><button className="back" onClick={onBack}>‹ Shots</button><h1>Flagged shots</h1>
     {!pend.length&&<p className="n">Nothing waiting. Tap ⚑ Flag shot during a visit to capture one.</p>}
-    {pend.map((x:any)=><div key={x.id} className="card">{x.d.photo&&<img src={x.d.photo} alt="" style={{width:'100%',maxHeight:220,objectFit:'cover',borderRadius:8,marginBottom:8}}/>}
+    {pend.map((x:any)=><div key={x.id} className="card">{x.d.photo&&<Photo src={x.d.photo} style={{width:'100%',height:'auto',maxHeight:'70vh',objectFit:'contain',borderRadius:8,marginBottom:8}}/>}
       <div>{x.d.note||<span className="n">No note</span>}</div><div className="n">{at(x)} · {x.d.venue||'No venue'}</div><div className="n">{ctx(x)}</div>
       <div className="row" style={{marginTop:8}}><button className="go sm" onClick={()=>onCreate(x)}>Create shot</button><button className="ghost" onClick={()=>confirm('Delete this flag?')&&drop(x.id)}>Delete</button></div></div>)}
     {done.length>0&&<><h2 style={{marginTop:16}}>Converted ({done.length})</h2>{done.map((x:any)=>{const sh=ss.find((q:any)=>q.id===x.d.shot);return <div key={x.id} className="srow"><span>{x.d.note||'Flag'} <span className="n">{at(x)}</span></span><b>→ {sh?title(sh.d,ss,sh.id):'deleted shot'}</b></div>})}</>}</>;

@@ -2,12 +2,13 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,uid} from './db';
 import {shrink} from './photo';
+import Photo from './Photo';
 import {derive} from './engine';
 import {sync} from './sync';
 import Avatar from './Avatar';
-import {Tip} from './Shots';
+import {Tip,Power,POW} from './Shots';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
-const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],SP=['Controlled','Medium','Power'],ONE=['Pocketed','High of side','Low of side','Other'];
+const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],ONE=['Pocketed','High of side','Low of side','Other'];
 const srt=(a:number[])=>[...a].sort((x,y)=>x-y);
 const Chips=({items,cur,set,w}:any)=><div className="row">{items.map((x:string,i:number)=><button key={i} className={'chip'+(cur===i?' on':'')} style={w?{minWidth:w,padding:'12px 2px'}:undefined} onClick={()=>set(i)}>{x}</button>)}</div>;
 const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
@@ -34,7 +35,7 @@ export function line(e:any,name:(id:string)=>string){
   const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
   if(e.type==='break'){
     if(d.skip)p.push('Break not logged');
-    else p.push('Break',d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,Z[d.z],SP[d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
+    else p.push('Break',d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,Z[d.z],POW[4+d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
     return p.join(' · ');
   }
   const open=d.open?(d.open==='None'?'No shot':d.open):d.rating||'';
@@ -84,9 +85,8 @@ function BreakForm({st,sid,last,name,other}:any){
     <div className="lbl">Contact on 1-ball · drag the cue ball around the 1-ball</div><Contact side={side} cf={cf} set={(sd:number,c:number)=>{setSide(sd);setCf(c)}}/>
     <div className="n" style={{textAlign:'center'}}>{ct===8?'Straight on · no cut':`${side?'Right':'Left'} · ${ct}/8 ball · ${ctLabel(ct)}`}</div>
     <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
-    <div className="lbl">Speed</div><Chips items={SP} cur={spd} set={setSpd}/>
-    <div className="lbl">Cue ball tip · {tipLabel(tip)}</div>
-    <Tip tip={tip} set={setTip}/>
+    <div className="lbl">Cue ball and power</div>
+    <div style={{display:'flex',gap:18,alignItems:'center',justifyContent:'center'}}><div style={{width:170,flex:'none'}}><Tip tip={tip} set={setTip}/><div className="n" style={{textAlign:'center',height:18,whiteSpace:'nowrap'}}>{tipLabel(tip)}</div></div><Power v={4+spd} set={(i:number)=>setSpd(i-4)} min={4}/></div>
     <div className="lbl">1-Ball direction</div><Chips items={ONE} cur={one} set={setOne}/>
     <div className="lbl">Other balls that dropped (tap which)</div>
     <div className="strip">{[2,3,4,5,6,7,8].map(i=><button key={i} className={'b'+(drops.includes(i)?' pot':'')} style={{['--c' as any]:BC[i]}} onClick={()=>setDrops(drops.includes(i)?drops.filter(x=>x!==i):[...drops,i])}>{i}</button>)}</div>
@@ -117,6 +117,7 @@ function VisitForm({st,sid,name,other,session}:any){
     await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,oo,low:rem[0],cause,fl,fg:fgs.length,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length},vid);
   };
   // Flag = capture now, diagram later. Saved at once (not with the visit) with the context the form already knows; status 'pending' until converted to a shot in the library.
+  const pickPh=async(e:any)=>{const f=e.target.files?.[0];e.target.value='';if(f)setFph(await shrink(f))};
   const addFlag=async()=>{const id=await save('flag',{t:Date.now(),s:sid,rack:st.rack,visit:vid,by:by.split('~')[0],venueId:session.d.venueId||'',venue:session.d.venue||'',table:st.table,open,note:fn.trim(),photo:fph||undefined,status:'pending'});setFgs([...fgs,id]);setFm(false);setFn('');setFph('')};
   const list=outsFor(open);
   return <div className="card"><div className="hdr"><b>{name(by)}{st.first?' · first shot':' at the table'}</b></div>
@@ -125,10 +126,10 @@ function VisitForm({st,sid,name,other,session}:any){
     <div className="lbl">Opening shot</div>
     <div className="row">{[['Easy','Clear shot'],['Hard','Tough shot'],['None','No shot']].map(([v,t])=><button key={v} className={'chip'+(open===v?' on':'')} onClick={()=>choose(v)}>{v==='None'?'No shot':v}<small>{t}</small></button>)}</div>
     {open&&<><div className="lbl">Board state</div>
-      <div className="row">{['Clear','Problem'].map(b=><button key={b} className={'chip'+(board===b?' on':'')} onClick={()=>setBoard(b)}>{b}</button>)}</div>
+      <div className="row">{['Clear','Problem'].map(b=><button key={b} className={'chip'+(board===b?' on':'')} onClick={()=>setBoard(b)}>{b==='Clear'?'Clean':b}</button>)}</div>
       {board==='Problem'&&<><div className="lbl">Which ball(s) are the problem?</div><div className="row">{st.table.map((i:number)=><button key={i} className={'chip'+(prob.includes(i)?' on':'')} style={{minWidth:40,padding:'10px 4px'}} onClick={()=>setProb(prob.includes(i)?prob.filter(x=>x!==i):[...prob,i])}>{i}</button>)}</div></>}</>}
     <div className="lbl">What happened</div>
-    <div className="row">{list.length?list.map(x=><button key={x} className={'chip'+(res===x?' on':'')} onClick={()=>pick(x)}>{x}{x==='Escape hit'&&<small>kick or jump</small>}</button>):<span className="n">Pick the opening shot first.</span>}</div>
+    <div className="row">{list.length?list.map(x=><button key={x} className={'chip'+(res===x?' on':'')} onClick={()=>pick(x)}>{x}</button>):<span className="n">Pick the opening shot first.</span>}</div>
     {['Missed','Foul'].includes(res)&&open!=='None'&&<><div className="lbl">Cause (required)</div><div className="row">{['Pot','Position','Decision','Other'].map(c=><button key={c} className={'chip'+(cause===c?' on':'')} onClick={()=>setCause(cause===c?'':c)}>{c}</button>)}</div></>}
     <div className="lbl">Optional</div>
     <div className="row"><button className="chip opt" onClick={()=>setFm(true)}>⚑ Flag shot</button><button className="chip opt" onClick={()=>setFp(true)}>✦ Fluke</button></div>
@@ -136,8 +137,8 @@ function VisitForm({st,sid,name,other,session}:any){
     <div className="tags">{fl.map((f,i)=><span key={i} className="tag f">✦ Fluke{f?' · '+f:''}<button className="x" onClick={()=>setFl(fl.filter((_,q)=>q!==i))}>✕</button></span>)}{fgs.length>0&&<span className="tag g">⚑ Flags: {fgs.length}<button className="x" onClick={()=>{drop(fgs[fgs.length-1]);setFgs(fgs.slice(0,-1))}}>✕</button></span>}</div>
     {fm&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:50,display:'flex',alignItems:'flex-end'}}><div className="card" style={{width:'100%',margin:0}}><h2>Flag shot</h2>
       <input value={fn} onChange={e=>setFn(e.target.value)} placeholder="Quick note (optional)" autoFocus/>
-      <div className="row" style={{margin:'10px 0'}}><label className="chip opt">📷 {fph?'Change photo':'Add photo'}<input type="file" accept="image/*" className="file" onChange={async e=>{const f=e.target.files?.[0];e.target.value='';if(f)setFph(await shrink(f))}}/></label>{fph&&<button className="chip opt" onClick={()=>setFph('')}>Remove photo</button>}</div>
-      {fph&&<img src={fph} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',borderRadius:8,marginBottom:10}}/>}
+      <div className="row" style={{margin:'10px 0'}}><label className="chip opt">📷 {fph?'Retake':'Camera'}<input type="file" accept="image/*" capture="environment" className="file" onChange={pickPh}/></label><label className="chip opt">🖼 Choose<input type="file" accept="image/*" className="file" onChange={pickPh}/></label>{fph&&<button className="chip opt" onClick={()=>setFph('')}>Remove photo</button>}</div>
+      {fph&&<Photo src={fph} style={{width:'100%',height:'auto',maxHeight:'45vh',objectFit:'contain',borderRadius:8,marginBottom:10}}/>}
       <div className="row"><button className="ghost" onClick={()=>{setFm(false);setFn('');setFph('')}}>Cancel</button><button className="go sm" style={{flex:1}} onClick={addFlag}>Save flag</button></div></div></div>}
     <button className="go" disabled={!res||(!open&&!push)||(['Missed','Foul'].includes(res)&&open!=='None'&&!cause)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
     {ask&&<div className="card"><b>Push out played</b><div className="n">Potted balls stay down. The 9 is respotted.</div><div className="row"><button className="chip" onClick={()=>finish(false)}>{name(o)} shoots it</button><button className="chip" onClick={()=>finish(true)}>Passes it back</button></div></div>}</div>;

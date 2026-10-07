@@ -13,6 +13,7 @@ function Run({sid,pd,pool,all,pname,onExit}:any){
   const mid=!!at.length&&run<per;
   if(!mid&&pend.current.k!==at.length)pend.current={k:at.length,...pickNext(pool.map((s:any)=>s.id),blocks(at),stats)};
   const cur=mid?last:pend.current.id,n=mid?run+1:1,s=pool.find((x:any)=>x.id===cur),t=tally(at),st=stats[cur],mp=mastery(st),why=pend.current.id===cur?pend.current:null;
+  const gl:{id:string;r:boolean[]}[]=[];at.forEach((a:any)=>{const g=gl[gl.length-1];if(g&&g.id===a.d.shot)g.r.push(a.d.ok);else gl.push({id:a.d.shot,r:[a.d.ok]})});
   const go=async(ok:boolean)=>{if(lock.current===at.length)return;lock.current=at.length;await save('attempt',{t:Date.now(),s:sid,shot:cur,by:pd.by,n,ok})};
   const undo=()=>{lock.current=-1;const a=at[at.length-1];a&&drop(a.id)};
   const end=async()=>{if(at.length){await save('practice',{...pd,end:Date.now()},sid);setFin(true)}else{await drop(sid);onExit()}};
@@ -34,7 +35,8 @@ function Run({sid,pd,pool,all,pname,onExit}:any){
         {s.d.note&&<div className="n" style={{marginTop:8}}>{s.d.note}</div>}</div>})()}
       <div className="n" style={{textAlign:'center',margin:'8px 0'}}>Attempt {n} of {per}{mid&&<> · {at.slice(-run).map((a:any)=>a.d.ok?'●':'○').join(' ')}</>}</div>
       <div className="row" style={{gap:10,flexWrap:'nowrap'}}><button className="go" style={{flex:1,minHeight:64,fontSize:20}} onClick={()=>go(true)}>Made</button><button className="ghost" style={{flex:1,minHeight:64,fontSize:20}} onClick={()=>go(false)}>Missed</button></div></>}
-    <button className="ghost" style={{marginTop:12}} disabled={!at.length} onClick={undo}>Undo last attempt</button></>;
+    <button className="ghost" style={{marginTop:12}} disabled={!at.length} onClick={undo}>Undo last attempt</button>
+    {at.length>0&&<div style={{marginTop:14}}><div className="lbl">This session · ✓ made · ✗ missed</div><div style={{maxHeight:200,overflowY:'auto'}}>{[...gl].reverse().map((g,i)=>{const sh=all.find((q:any)=>q.id===g.id);return <div key={i} className="srow"><span>{sh?title(sh.d,all,g.id):'Deleted shot'}</span><span>{g.r.map((ok:boolean,j:number)=><span key={j} title={ok?'Made':'Missed'} style={{color:ok?'var(--cloth)':'#c4513d',marginRight:2}}>{ok?'✓':'✗'}</span>)} <span className="n">{g.r.filter(Boolean).length}/{g.r.length}</span></span></div>})}</div></div>}</>;
 }
 export default function Practice({deck,pool,all,onExit}:any){
   const pl=useLiveQuery(()=>ofType('player'),[])||[],ps=pl.filter(p=>!p.d.archived),vs=useLiveQuery(()=>ofType('venue'),[])||[];

@@ -16,7 +16,8 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 |---|---|
 | `db.ts` | Dexie table `recs`, `save`, `drop`, `ofType`. Record = `{id,type,u,dirty,del,d}` |
 | `engine.ts` | `derive(players,events)` → rack, table, scores, shooter, first-shot flag, phase, breaker, problem balls |
-| `Live.tsx` | Live session: `BreakForm`, `VisitForm`, rack log, `line()` text formatter, undo/end session |
+| `Live.tsx` | Live session: `BreakForm`, `VisitForm` (incl. flag-shot modal), rack log, `line()` text formatter, undo/end session |
+| `photo.ts` | `shrink(file)` → small JPEG data URL |
 | `stats.ts` | `walk()` replays a session (gives each visit its starting table); `playerStats`, `breakStats` |
 | `rating.ts` / `ratingConfig.ts` | Six attribute scores, shrinkage, 0–1000 rating, ranks. **All tunables live in ratingConfig** |
 | `Review.tsx` | Review → Players (rating card, radar, graphs) and Breaks |
@@ -36,7 +37,7 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 - `break` {t, s(session id), rack, by, z(0–6 L3..R3), ct(1–8 eighths of overlap, 8=straight), cf, side(0 L/1 R), spd(0–2), tip[x,y], one(0 pocketed/1 high/2 low/3 other), drops[], scratch, nine(=golden break), next, skip?}
 - `visit` {t, s, rack, by, open('Easy'|'Hard'|'None'), board('Clear'|'Problem'), prob[], res, potted[], oo[], low, cause, fl[], fg, won, first, push, next, runout}
   - `res`: Won rack · Missed · Safe played · Escape hit · Foul · Push out
-- `flag` {s, rack, by, table, open, visit} (placeholder: no photos, no inbox yet)
+- `flag` {t, s, rack, visit(id of the visit being logged), by(player id, base), venueId, venue, table(balls up), open, note, photo?(≤720px JPEG data URL), status('pending'|'converted'; missing = pending), shot?(id of the shot it became)}. A flag is a bookmark, not a shot: saved immediately from the visit form (Flag shot → note/photo optional → Save), listed in Shots → ⚑ Flagged (n), converted via Create shot (opens the normal editor; sets `status:'converted'` + `shot`, keeps the flag).
 - `shot` {no, tag, name, by, balls[{n,x,y} inches; n=0 is cue ball], target, pocket(0–5), path[] (cue ball route after contact), tip, pw(0–6; legacy `speed` maps via `pw()`), leave{x,y,tol}, note}. The per-tag number ("Spot Shot #3") is **derived** in `title()` (rank by `no`, then id, within tag, case-insensitive); it is a label, never an identity. Attempts reference the shot **id**.
 - `deck` {name, kind('smart'|'custom'), rule{tag,by}, shotIds[], c}. Smart = tag and/or shot-by match (no rule = whole catalogue); custom = explicit ids. Resolved at read time, nothing copied; a shot can be in many decks.
 - `practice` {deck, deckName, by, venueId, venue(name snapshot), per, start, end?} · `attempt` {t, s(practice id), shot(id), by, n(1..per), ok}. Attempts are append-only; undo/delete = soft delete. Practice stats are **per player + shot**, derived from attempts every time; never stored.
@@ -72,7 +73,7 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 ## Sync / deployment
 - Site: GitHub Actions (`.github/workflows/deploy.yml`) builds with Vite (`base:'./'`) and deploys to GitHub Pages from `main`. PWA, auto-update.
 - Data: separate **private** repo, files `players.json` (players+venues), `sessions/<id>.json` (session + its breaks/visits/flags), `catalogue.json` (shots + decks), `practice/<id>.json` (a practice session + its attempts). Each file `{recs:[…]}`, last-write-wins by `u`, per-file sha tracked in localStorage (`ct.shas`, `ct.seen:*`). Token (fine-grained, Contents RW) lives only in localStorage. Old `records/` folder is obsolete.
-- Photos are not synced (profile pics are small data URLs inside player records; shot photos are planned as local-only).
+- Photos: profile pics are small data URLs inside player records (synced). Flag photos are data URLs inside the flag record but **stripped on push and kept on pull** (`sync.ts`), so they stay on the device that took them.
 
 ## Known issues / debt
 - Much of the code was written without being compiled in the authoring environment; run `npm install && npm run typecheck && npm run build` before trusting it and fix type errors.

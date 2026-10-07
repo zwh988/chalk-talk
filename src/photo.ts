@@ -1,0 +1,2 @@
+// Downscale a picked image to a small JPEG data URL (same storage style as profile pics: inside the record, no separate store).
+export const shrink=(f:File,max=720,q=.7)=>new Promise<string>(res=>{const i=new Image(),u=URL.createObjectURL(f);i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d')!.drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};i.onerror=()=>res('');i.src=u});

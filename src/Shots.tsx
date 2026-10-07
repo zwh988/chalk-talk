@@ -1,6 +1,6 @@
 import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
-import {save,drop,ofType} from './db';
+import {save,drop,ofType,uid} from './db';
 const BC=['#f5f2e8','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
@@ -55,7 +55,7 @@ function Power({v,set}:any){
       {POW.map((_,i)=><div key={i} style={{flex:1,borderRadius:4,background:i<=v?`hsl(${150-i*22} 55% 45%)`:'var(--chip)'}}/>)}</div>
     <div className="n"><b>{v+1}/7</b><br/>{POW[v]}</div></div>;
 }
-function Editor({init,id,players,shots,onDone}:any){
+function Editor({init,id,players,shots,onDone,flag}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
   const drag=useRef<any>(null);
   const pt=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*110-5,y:(e.clientY-r.top)/r.height*60-5}};
@@ -84,6 +84,7 @@ function Editor({init,id,players,shots,onDone}:any){
   const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
     <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d,shots,id)}</b></div>
+    {flag&&(flag.d.photo||flag.d.note)&&<div className="card">{flag.d.photo&&<img src={flag.d.photo} alt="" style={{width:'100%',maxHeight:220,objectFit:'cover',borderRadius:8}}/>}{flag.d.note&&<div className="n" style={{marginTop:6}}>Flag note: {flag.d.note}</div>}</div>}
     <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=null}}}/>
       <div className="row" style={{marginTop:8}}>{['balls','target','leave','path'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
       <div className="n">{hint[mode]}</div>
@@ -102,20 +103,36 @@ function Editor({init,id,players,shots,onDone}:any){
       <label>Name (optional)<input value={d.name} onChange={e=>setD({...d,name:e.target.value})} placeholder="e.g. Long cut to the 7"/></label>
       <label>Shot by<select value={d.by} onChange={e=>setD({...d,by:e.target.value})}>{players.map((p:any)=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Note<input value={d.note} onChange={e=>setD({...d,note:e.target.value})}/></label>
-      <button className="go" onClick={async()=>{let tg=(d.tag||'').trim();const ex=shots.find((x:any)=>x.d.tag&&x.d.tag.toLowerCase()===tg.toLowerCase());if(ex)tg=ex.d.tag;await save('shot',{...d,tag:tg,pw:pw(d),speed:undefined,tagNo:undefined},id);onDone()}}>Save shot</button>
+      <button className="go" onClick={async()=>{let tg=(d.tag||'').trim();const ex=shots.find((x:any)=>x.d.tag&&x.d.tag.toLowerCase()===tg.toLowerCase());if(ex)tg=ex.d.tag;const sid=id||uid();await save('shot',{...d,tag:tg,pw:pw(d),speed:undefined,tagNo:undefined},sid);if(flag&&flag.d.status!=='converted')await save('flag',{...flag.d,status:'converted',shot:sid},flag.id);onDone()}}>Save shot</button>
       {id&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm('Delete this shot?')&&drop(id).then(onDone)}>Delete shot</button>}</div></>;
 }
 export const ShotCard=({s,all,nm,onClick,sub}:any)=>{const m=measure(s.d);return <button className="card shotcard" onClick={onClick}>
   <div style={{width:140,flex:'none'}}><Table d={s.d} small/></div>
   <div><b>{title(s.d,all,s.id)}</b><div className="n">by {nm(s.d.by)} · {POW[pw(s.d)]}</div>{sub&&<div className="n">{sub}</div>}
     {m&&<div className="n">Cut {Math.round(m.cut)}° · cue {dm(m.cue)}◇ · object {dm(m.obj)}◇</div>}</div></button>};
+// Pending flags = flag records whose status isn't 'converted' (older flags have no status). Converting keeps the flag and stores the new shot id on it.
+function Flags({fgs,ss,onBack,onCreate}:any){
+  const pl=useLiveQuery(()=>ofType('player'),[])||[],se=useLiveQuery(()=>ofType('session'),[])||[];
+  const nm=(id:string)=>pl.find(p=>p.id===id)?.d.name??'—',tm=(x:any)=>x.d.t??x.u;
+  const ctx=(x:any)=>{const s=se.find(q=>q.id===x.d.s);return [s?(s.d.name||new Date(s.d.start).toLocaleDateString()):'',x.d.rack?`rack ${x.d.rack}`:'',nm(x.d.by)].filter(Boolean).join(' · ')};
+  const at=(x:any)=>new Date(tm(x)).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const pend=fgs.filter((x:any)=>x.d.status!=='converted').sort((a:any,b:any)=>tm(b)-tm(a)),done=fgs.filter((x:any)=>x.d.status==='converted').sort((a:any,b:any)=>tm(b)-tm(a));
+  return <><button className="back" onClick={onBack}>‹ Shots</button><h1>Flagged shots</h1>
+    {!pend.length&&<p className="n">Nothing waiting. Tap ⚑ Flag shot during a visit to capture one.</p>}
+    {pend.map((x:any)=><div key={x.id} className="card">{x.d.photo&&<img src={x.d.photo} alt="" style={{width:'100%',maxHeight:220,objectFit:'cover',borderRadius:8,marginBottom:8}}/>}
+      <div>{x.d.note||<span className="n">No note</span>}</div><div className="n">{at(x)} · {x.d.venue||'No venue'}</div><div className="n">{ctx(x)}</div>
+      <div className="row" style={{marginTop:8}}><button className="go sm" onClick={()=>onCreate(x)}>Create shot</button><button className="ghost" onClick={()=>confirm('Delete this flag?')&&drop(x.id)}>Delete</button></div></div>)}
+    {done.length>0&&<><h2 style={{marginTop:16}}>Converted ({done.length})</h2>{done.map((x:any)=>{const sh=ss.find((q:any)=>q.id===x.d.shot);return <div key={x.id} className="srow"><span>{x.d.note||'Flag'} <span className="n">{at(x)}</span></span><b>→ {sh?title(sh.d,ss,sh.id):'deleted shot'}</b></div>})}</>}</>;
+}
 export default function Shots({seg}:any){
   const ss=useLiveQuery(()=>ofType('shot'),[])||[],ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);
-  const [f,setF]=useState('all'),[tf,setTf]=useState(''),[ed,setEd]=useState<any>(null);
+  const [f,setF]=useState('all'),[tf,setTf]=useState(''),[ed,setEd]=useState<any>(null),[fv,setFv]=useState(false),fgs=useLiveQuery(()=>ofType('flag'),[])||[],pend=fgs.filter(x=>x.d.status!=='converted');
   const nm=(id:string)=>ps.find(p=>p.id===id)?.d.name??'—';
-  if(ed)return <Editor key={ed.id||'new'} id={ed.id} init={ed.d} players={ps} shots={ss} onDone={()=>setEd(null)}/>;
-  const next=Math.max(0,...ss.map(s=>s.d.no))+1,list=ss.filter(s=>(f==='all'||s.d.by===f)&&(!tf||s.d.tag===tf)).sort((a,b)=>a.d.no-b.d.no);
-  return <>{seg}<div className="hdr"><h1>Shots</h1><button className="go sm" onClick={()=>setEd({d:{...blank(),no:next,by:ps[0]?.id||''}})}>New shot</button></div>
+  if(ed)return <Editor key={ed.id||'new'+(ed.flag?.id||'')} id={ed.id} init={ed.d} flag={ed.flag} players={ps} shots={ss} onDone={()=>setEd(null)}/>;
+  const next=Math.max(0,...ss.map(s=>s.d.no))+1;
+  if(fv)return <Flags fgs={fgs} ss={ss} onBack={()=>setFv(false)} onCreate={(x:any)=>setEd({d:{...blank(),no:next,by:x.d.by||ps[0]?.id||'',note:x.d.note||''},flag:x})}/>;
+  const list=ss.filter(s=>(f==='all'||s.d.by===f)&&(!tf||s.d.tag===tf)).sort((a,b)=>a.d.no-b.d.no);
+  return <>{seg}<div className="hdr"><h1>Shots</h1><div className="row" style={{flexWrap:'nowrap'}}>{fgs.length>0&&<button className="ghost" onClick={()=>setFv(true)}>⚑ Flagged ({pend.length})</button>}<button className="go sm" onClick={()=>setEd({d:{...blank(),no:next,by:ps[0]?.id||''}})}>New shot</button></div></div>
     <select value={f} onChange={e=>setF(e.target.value)} style={{marginBottom:12}}><option value="all">All players</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
     <select value={tf} onChange={e=>setTf(e.target.value)} style={{marginBottom:12}}><option value="">All tags</option>{[...new Set(ss.map(s=>s.d.tag).filter(Boolean))].sort().map((x:any)=><option key={x} value={x}>{x}</option>)}</select>
     {!list.length&&<p className="n">No shots yet. Tap New shot to diagram one.</p>}

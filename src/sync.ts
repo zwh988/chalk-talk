@@ -7,7 +7,7 @@ const b64=(s:string)=>btoa(unescape(encodeURIComponent(s)));
 const unb64=(s:string)=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
 // One file per session (sessions/<id>.json: the session, its breaks, visits, flags), players.json, catalogue.json (shots + decks), and practice/<id>.json (a practice session + its attempts).
 const fileOf=(r:Rec)=>r.type==='player'||r.type==='venue'?'players.json':r.type==='shot'||r.type==='deck'?'catalogue.json':r.type==='practice'||r.type==='attempt'?`practice/${r.type==='practice'?r.id:r.d.s}.json`:`sessions/${r.type==='session'?r.id:r.d.s}.json`;
-const strip=(r:Rec)=>({id:r.id,type:r.type,u:r.u,del:r.del,d:r.d});
+const strip=(r:Rec)=>({id:r.id,type:r.type,u:r.u,del:r.del,d:r.type==='flag'&&r.d.photo?{...r.d,photo:undefined}:r.d});   // flag photos are local-only
 export async function sync(say:(m:string)=>void){
   const c=getCfg();if(!c.repo||!c.token)throw new Error('Set up sync first (Sync tab).');
   if(localStorage.getItem('ct.shas')===null)await db.recs.toCollection().modify({dirty:1}); // first run of per-session format
@@ -24,7 +24,7 @@ export async function sync(say:(m:string)=>void){
     if(localStorage.getItem('ct.seen:'+f.path)===f.sha)continue;
     say(`Pulling ${f.path}…`);
     const remote:any[]=JSON.parse(unb64((await (await api(`git/blobs/${f.sha}`)).json()).content)).recs;
-    for(const r of remote){const l=await db.recs.get(r.id);if(!l||r.u>l.u){await db.recs.put({...r,dirty:0});pulled++}}
+    for(const r of remote){const l=await db.recs.get(r.id);if(!l||r.u>l.u){await db.recs.put({...r,d:r.type==='flag'&&l?.d?.photo&&!r.d.photo?{...r.d,photo:l.d.photo}:r.d,dirty:0});pulled++}}
     localStorage.setItem('ct.seen:'+f.path,f.sha);
   }
   const dirty=await db.recs.where('dirty').equals(1).toArray();

@@ -2,15 +2,17 @@ import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import {Table,Tip,POW,pw,title,measure,tipLabel,dm} from './Shots';
-import {blocks,pickNext,tally} from './practice';
+import {blocks,pickNext,tally,shotStats,mastery,level} from './practice';
 // practice {deck,deckName,by,venueId,venue,per,start,end?} · attempt {t,s(practice id),shot(id),by,n(1..per),ok}. Attempts are append-only; undo soft-deletes the last one.
 function Run({sid,pd,pool,all,pname,onExit}:any){
-  const at=(useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del&&r.d.s===sid).toArray(),[sid])||[]).sort((a:any,b:any)=>a.d.t-b.d.t);
+  const hist=useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del&&r.d.by===pd.by).toArray(),[pd.by]);
   const [fin,setFin]=useState(false),lock=useRef(-1),pend=useRef<any>({k:-1,id:''});
+  if(!hist)return null;
+  const at=hist.filter((a:any)=>a.d.s===sid).sort((a:any,b:any)=>a.d.t-b.d.t),stats=shotStats(hist,pd.by);
   const per=pd.per,last=at[at.length-1]?.d.shot;let run=0;for(let i=at.length-1;i>=0&&at[i].d.shot===last;i--)run++;
   const mid=!!at.length&&run<per;
-  if(!mid&&pend.current.k!==at.length)pend.current={k:at.length,id:pickNext(pool.map((s:any)=>s.id),blocks(at))};
-  const cur=mid?last:pend.current.id,n=mid?run+1:1,s=pool.find((x:any)=>x.id===cur),t=tally(at);
+  if(!mid&&pend.current.k!==at.length)pend.current={k:at.length,...pickNext(pool.map((s:any)=>s.id),blocks(at),stats)};
+  const cur=mid?last:pend.current.id,n=mid?run+1:1,s=pool.find((x:any)=>x.id===cur),t=tally(at),st=stats[cur],mp=mastery(st),why=pend.current.id===cur?pend.current:null;
   const go=async(ok:boolean)=>{if(lock.current===at.length)return;lock.current=at.length;await save('attempt',{t:Date.now(),s:sid,shot:cur,by:pd.by,n,ok})};
   const undo=()=>{lock.current=-1;const a=at[at.length-1];a&&drop(a.id)};
   const end=async()=>{if(at.length){await save('practice',{...pd,end:Date.now()},sid);setFin(true)}else{await drop(sid);onExit()}};
@@ -21,7 +23,9 @@ function Run({sid,pd,pool,all,pname,onExit}:any){
   return <><div className="hdr"><b>{pd.deckName}</b><button className="ghost" onClick={end}>End session</button></div>
     <div className="n">{pname(pd.by)} · {pd.venue||'No venue'} · {t.made}/{t.n} made</div>
     {!s?<div className="card"><p className="n">No shot available. End the session or add shots to the deck.</p></div>:<>
-      {(()=>{const m=measure(s.d),w=pw(s.d);return <div className="card"><h2>{title(s.d,all,s.id)}</h2><Table d={s.d}/>
+      {(()=>{const m=measure(s.d),w=pw(s.d);return <div className="card"><h2>{title(s.d,all,s.id)}</h2>
+        <div className="srow" style={{border:0,padding:0}}><span><b>{level(mp)}</b> <span className="n">for {pname(pd.by)}</span></span><span className="n">{st?`recent ${st.recent.made}/${st.recent.n} · all ${st.made}/${st.n}`:'no history'}</span></div><div className="bar" style={{margin:'4px 0'}}><i style={{width:Math.round((mp??.5)*100)+'%'}}/></div>
+        {why&&<div className="n" style={{marginBottom:8}}>Why now: {why.why.join(' · ')} · {Math.round(why.share*100)}% chance of this pick</div>}<Table d={s.d}/>
         <div className="row" style={{flexWrap:'nowrap',gap:12,alignItems:'flex-start',marginTop:10}}>
           <div style={{width:104,flex:'none',pointerEvents:'none'}}><Tip tip={s.d.tip} set={()=>{}} size={104}/><div className="n" style={{textAlign:'center'}}>{tipLabel(s.d.tip)}</div></div>
           <div style={{flex:1,minWidth:0}}><div className="srow"><span>Power</span><b>{POW[w]}</b></div><div className="bar"><i style={{width:(w+1)/7*100+'%'}}/></div>

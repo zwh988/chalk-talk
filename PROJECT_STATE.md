@@ -9,6 +9,7 @@
 - Decks (Shots → Decks): smart (tag and/or shot-by; no rule = whole catalogue) and custom decks, deck detail with shots, create/edit/delete.
 - Practice: pick player, venue, attempts per shot (default 3); full-scale diagram, cue tip, power, cut/distances; Made/Missed, undo, end any time; saved attempts per player+shot. Per-player stats (attempts, make %, last practiced, recent), progress chart, shots needing attention, delete a session or reset a player's deck history. Adaptive selection (weak/new/stale shots more often, mastered still appear, cooldown) with mastery and why-now shown.
 - Flag shot: capture note/photo during a visit (saved at once with session/rack/player/venue context), pending list in Shots → ⚑ Flagged, Create shot opens the editor and links the flag to the new shot (flag kept, status converted). Photos stay local to the device.
+- Review: recent-change arrows (latest 4 vs previous 4 completed sessions) on rating, run-out/conversion/safeties/racks and break stats.
 - Solo practice sessions (Player 2 = "Myself"): both seats logged as normal, shown as "Name" and "Name (2)", counted in Review and rating (rack-win stats skipped); Review filter: All / Matches only / Solo only.
 - GitHub sync, PWA, theme presets + custom colours, status-bar colour follows theme.
 

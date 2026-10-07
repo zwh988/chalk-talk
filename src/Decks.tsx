@@ -54,6 +54,6 @@ export default function Decks({seg}:any){
       {hist.some(x=>x.d.by===who)&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm(`Delete all of ${nm(who)}'s practice sessions for this deck?`)&&delS(hist.filter(x=>x.d.by===who).map(x=>x.id))}>Reset {nm(who)}'s history for this deck</button>}</div>}</>}
   return <>{seg}<div className="hdr"><h1>Decks</h1><button className="go sm" onClick={()=>setEd({d:blank()})}>New deck</button></div>
     {!ks.length&&<p className="n">No decks yet. A smart deck follows a tag or player; a custom deck is hand-picked.</p>}
-    {ks.map(x=><button key={x.id} className="card" style={{width:'100%',textAlign:'left'}} onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {deckShots(x.d,ss).length} shots</div></button>)}
+    {ks.map(x=><button key={x.id} className="card" style={{width:'100%',textAlign:'left',color:'var(--ink)',font:'inherit'}} onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {deckShots(x.d,ss).length} shots</div></button>)}
     {pss.some(x=>!ks.some(q=>q.id===x.d.deck))&&<div className="card"><h2>History from deleted decks</h2><Hist xs={pss.filter(x=>!ks.some(q=>q.id===x.d.deck)).sort((a,b)=>b.d.start-a.d.start)} at={at} nm={nm} del={delS} deck/></div>}</>;
 }

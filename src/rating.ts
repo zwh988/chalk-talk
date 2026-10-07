@@ -1,4 +1,4 @@
-import {walk} from './stats';
+import {walk,isMe} from './stats';
 import type {Rec} from './db';
 import {W,K,PROV,AN,RANKS,ATTRS} from './ratingConfig';
 export {ATTRS,PROV};
@@ -10,10 +10,10 @@ export function attrs(pid:string,groups:Rec[][]){
   for(const evs of groups){const it=walk(evs);
     it.forEach((x:any,i:number)=>{const d=x.e.d;
       const next=()=>it.slice(i+1).find((y:any)=>y.kind==='visit'&&y.e.d.rack===d.rack);
-      if(x.kind==='break'){if(d.by!==pid||d.skip)return;
+      if(x.kind==='break'){if(!isMe(d.by,pid)||d.skip)return;
         const dr=d.drops.length+(d.one===0?1:0);t.brk++;t.brkBalls+=dr;if(d.scratch)t.brkScr++;if(!d.scratch&&(dr>0||d.nine))t.brkOK++;
-        if(d.nine)t.brkRun++;else{const nx=next();if(nx&&nx.e.d.by===pid&&nx.e.d.won)t.brkRun++}return}
-      if(d.by!==pid||d.push)return;
+        if(d.nine)t.brkRun++;else{const nx=next();if(nx&&nx.e.d.by===d.by&&nx.e.d.won)t.brkRun++}return}
+      if(!isMe(d.by,pid)||d.push)return;
       t.visits++;if(d.res==='Foul')t.fouls++;if(d.cause==='Decision')t.decision++;
       const fail=d.res==='Missed'||d.res==='Foul',m=Math.max(0,d.potted.length-(d.fl?.length||0)),pf=fail&&d.cause==='Pot'?1:0;
       t.made+=m;t.potFail+=pf;t.posOK+=Math.max(0,m-1)+(m>0&&pf?1:0);t.posFail+=fail&&d.cause==='Position'?1:0;

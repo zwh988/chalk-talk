@@ -19,10 +19,10 @@ export default function Stats({kind}:{kind:string}){
   const ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
   const all=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del).toArray(),[])||[];
-  const [pid,setPid]=useState(''),[win,setWin]=useState('4'),[cmp,setCmp]=useState('');
+  const [pid,setPid]=useState(''),[win,setWin]=useState('4'),[cmp,setCmp]=useState(''),[typ,setTyp]=useState('all');
   if(!ps.length)return <p className="n">Add players and log a session first.</p>;
   const sel=pid||ps[0].id,me=ps.find(p=>p.id===sel);
-  const gr=(id:string)=>ss.filter(s=>!s.d.solo&&s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
+  const gr=(id:string)=>ss.filter(s=>(typ==='all'||(typ==='solo')===!!s.d.solo)&&s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
   const mine=gr(sel),groups=win==='all'?mine:mine.slice(0,4);
   const s=kind==='players'?playerStats(sel,groups):null,b=kind==='breaks'?breakStats(sel,groups):null;
   const cnt=(o:any)=>`Easy ${o.Easy} · Hard ${o.Hard} · No shot ${o.None}`;
@@ -32,6 +32,7 @@ export default function Stats({kind}:{kind:string}){
   return <>
     <select value={sel} onChange={e=>setPid(e.target.value)} style={{marginBottom:8}}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
     <select value={win} onChange={e=>setWin(e.target.value)} style={{marginBottom:6}}><option value="4">Last 4 sessions</option><option value="all">All time</option></select>
+    <select value={typ} onChange={e=>setTyp(e.target.value)} style={{marginBottom:6}}><option value="all">All sessions</option><option value="match">Matches only</option><option value="solo">Solo practice only</option></select>
     <div className="n" style={{marginBottom:10}}>{groups.length} session{groups.length===1?'':'s'} · faded graphs have fewer than 5 observations</div>
     {s&&<>
       <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1}}><div className="n">{me?.d.name} · all sessions</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}</div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}</div><div style={{fontSize:46,fontWeight:900,color:'var(--cloth)'}}>{rankOf(R)}</div></div>

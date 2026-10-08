@@ -104,6 +104,8 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 * Type scale `--fs-s/m/b/l/xl/n` = 12/14/15/18/22/30px, font `--font`; `h2` is styled (18px).
 * Buttons: `.go` amber primary, `.ghost` solid-outline secondary, `.link` text, `.danger` modifier (red; `.go.danger` filled).
 * Dashed border (`.chip.opt`) only means optional/add.
+* Primary action on long forms (Live break/visit) goes in `<div className="stick">` as the last in-flow child of the card: sticky to the bottom of `main`. Ball tap strips use `.strip.t` + `.bt` (hit area = whole cell, circle is `::before`); the older `.b` may still be used elsewhere (e.g. Shots).
+* Live header: `.score` (two `.sc` blocks + `.rk`); `.sc.at` marks who is at the table (breaker during the break phase, following the form's "Change breaker").
 
 ## Conventions
 

@@ -16,15 +16,16 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 |---|---|
 | `db.ts` | Dexie table `recs`, `save`, `drop`, `ofType`. Record = `{id,type,u,dirty,del,d}` |
 | `engine.ts` | `derive(players,events)` → rack, table, scores, shooter, first-shot flag, phase, breaker, problem balls |
-| `Live.tsx` | Live session: `BreakForm`, `VisitForm` (incl. flag-shot modal), rack log, `line()` text formatter, undo/end session |
+| `Live.tsx` | Live session: `BreakForm`, `VisitForm` (incl. flag-shot modal), rack log, `line()` text formatter, undo (shows "Last logged: …") and end session (always opens a confirm sheet; offers sync first if unsynced) |
 | `photo.ts` | `shrink(file)` → small JPEG data URL |
 | `delta.ts` | Recent-change helpers: `periods` (latest 4 vs previous 4 completed sessions, needs 8), `ppDelta` (pp change, hidden if either side <5 observations) |
 | `Photo.tsx` | Photo thumbnail, tap for full-screen view |
+| `ui.tsx` | Cross-screen overlay primitives: `Sheet` (bottom sheet), `ask(msg,okLabel)` / `tell(msg)` promise dialogs (replace `confirm`/`alert`), `<Dialogs/>` mounted once in `App` |
 | `stats.ts` | `walk()` replays a session (gives each visit its starting table); `playerStats`, `breakStats` |
 | `rating.ts` / `ratingConfig.ts` | Six attribute scores, shrinkage, 0–1000 rating, ranks. **All tunables live in ratingConfig** |
 | `Review.tsx` | Review → Players (rating card, radar, graphs) and Breaks |
 | `History.tsx` | Match history, edit session details, delete session/rack |
-| `Shots.tsx` | Shot catalogue list/filters, SVG diagram editor, `measure()` (ghost ball, cut angle, distances), `title()` (derived per-tag numbering), exported `Table`/`Tip`/`ShotCard` |
+| `Shots.tsx` | Shot catalogue list/filters, SVG diagram editor, `measure()` (ghost ball, cut angle, distances), `title()` (derived per-tag numbering), exported `Table`/`Tip`/`Power`/`POW`/`ShotCard`/`tipLabel` |
 | `Decks.tsx` | Decks: list, detail (shots, per-player stats, progress chart, history + delete), editor; `deckShots()` resolves membership |
 | `Practice.tsx` | Practice setup (player, venue, attempts/shot) and run (Made/Missed, undo, end, summary, mastery + why-now) |
 | `practice.ts` | `shotStats` (per player+shot, derived), `mastery`/`level`, adaptive `weigh`/`pickNext`, **all tunables in `PC`** |
@@ -66,11 +67,14 @@ Mobile-first PWA for logging and analysing 9-ball matches between two players on
 ## UI/UX principles
 - One-handed, minimal taps at the table; phone portrait first, unfolded/landscape is also used for review.
 - Bottom icon nav in portrait, left rail in landscape. Filters are dropdowns (many players/tags expected), not chips.
-- Newest first everywhere. Confirm destructive actions. Clean, functional, data-focused; the rank/radar card is the one deliberate game-style element — keep it restrained.
+- Newest first everywhere. Destructive actions: `.danger` styling + `await ask('…','Verb')` (never native `confirm()`/`alert()`; use `tell()` for notices). Overlays use `<Sheet>`. Clean, functional, data-focused; the rank/radar card is the one deliberate game-style element — keep it restrained.
 - Theme via CSS variables (`--bg --panel --ink --mute --cloth --amber --nav --chip --line`); user can pick colours/presets. No light/dark selector for now.
+- Semantic colours are **fixed tokens, not themeable** (`--good --bad --warn`, defined in `styles.css`, absent from `theme.ts`): use them for better/worse/caution, never `--cloth`/`--amber`. Type scale `--fs-s/m/b/l/xl/n` = 12/14/15/18/22/30px, font `--font`; `h2` is styled (18px).
+- Buttons: `.go` amber primary, `.ghost` solid-outline secondary, `.link` text, `.danger` modifier (red; `.go.danger` filled). Dashed border (`.chip.opt`) only means optional/add.
 
 ## Conventions
-- Dense, compact TypeScript (short names, one-line handlers, liberal `any`); single `styles.css`; shared small components inline in the screen file. Match the surrounding style.
+- Dense, compact TypeScript (short names, one-line handlers, liberal `any`); single `styles.css`; shared small components inline in the screen file (cross-screen primitives go in `ui.tsx`). Match the surrounding style.
+- CSS gotcha: `font:600 14px inherit` is **invalid** (the whole declaration is dropped, leaving 13px regular). Use `font:600 var(--fs-m) var(--font)`.
 - Reactive reads with `useLiveQuery`; local React state for forms; no global store.
 - No test framework. Verify with `npm run typecheck` and `npm run build`, then on a phone.
 

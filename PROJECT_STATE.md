@@ -13,18 +13,22 @@
 - Review: recent-change arrows (latest 4 vs previous 4 completed sessions) on rating, run-out/conversion/safeties/racks and break stats.
 - Solo practice sessions (Player 2 = "Myself"): both seats logged as normal, shown as "Name" and "Name (2)", counted in Review and rating (rack-win stats skipped); Review filter: All / Matches only / Solo only.
 - GitHub sync, PWA, theme presets + custom colours, status-bar colour follows theme.
+- UX audit pass (chunks 0–2): copy/typo fixes, contact-diagram clipping fixed, semantic colour tokens + type scale + valid button fonts (buttons are now genuinely bold/larger), `ui.tsx` bottom sheets and `ask()/tell()` dialogs replacing native confirm/alert, red `.danger` on destructive buttons, End session always confirms and sits apart from Undo, Undo shows what it will remove.
 
 ## Just shipped, awaiting user test
+UX audit chunks 0–2 (see Implemented): check button sizes/wrapping on a phone, the End-session sheet, the push-out and flag sheets, the smaller contact-diagram ball. `Venues.tsx` still uses native `confirm()` (not yet converted).
 Decks, practice, stats, adaptive selection, progress view (written without being compiled: run typecheck/build first). Tags + filter, edit session details, landscape layout fix (rail full height, content flush top), Won rack on No shot, dropdown filters, graphs, rating.
 
 ## In progress / next
-1. Flag follow-ups: show flagged count on the Play tab, optional "return to pending" if a converted shot is deleted.
-2. Shot difficulty from effective pocket size (proposal: effective width = mouth × cos(approach angle) − ball diameter → angular margin → aim tolerance → 1–5; placeholder mouths ≈4.5" corner / 5" side, adjustable in Settings).
-3. Rating balancing using the user's logged pro matches (edit `ratingConfig.ts`).
-4. Practice follow-ups: tune `PC` and mastery thresholds on real data; resume an interrupted session; optional pot/position result per attempt; cross-deck practice history screen.
-5. Break recommendation engine (explore/exploit, coarse bins first) — deferred.
+1. UX audit plan, one chunk at a time (done 0–2): 3 Live ergonomics (sticky Log bar, bigger ball strip, header score/active player, flag sheet no autofocus) · 4 nav labels + badges + keep state across tabs + history back + discard confirm in shot editor · 5 session-start memory/rematch · 6 Practice promotion (Train tab), resumable run, setup sheet, equal-weight Made/Missed · 7 Review filter row/labels/legend/provisional rank · 8 History polish + match summary · 9 correct past visits (needs `engine.ts` review) · 10 accessibility/PWA polish.
+2. Flag follow-ups: show flagged count on the Play tab, optional "return to pending" if a converted shot is deleted.
+3. Shot difficulty from effective pocket size (proposal: effective width = mouth × cos(approach angle) − ball diameter → angular margin → aim tolerance → 1–5; placeholder mouths ≈4.5" corner / 5" side, adjustable in Settings).
+4. Rating balancing using the user's logged pro matches (edit `ratingConfig.ts`).
+5. Practice follow-ups: tune `PC` and mastery thresholds on real data; resume an interrupted session; optional pot/position result per attempt; cross-deck practice history screen.
+6. Break recommendation engine (explore/exploit, coarse bins first) — deferred.
 
 ## Pending decisions
+- UX: collapse tip/power on the Break form (after trying the sticky bar)? default "me" player? rename Shots tab to Train? terminology glossary (match vs session vs practice).
 - Rank thresholds/anchors after real data; whether Breaks view should also be graphs; trend sparklines.
 
 ## Decided against

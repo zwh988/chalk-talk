@@ -9,7 +9,7 @@ const unb64=(s:string)=>decodeURIComponent(escape(atob(s.replace(/\n/g,''))));
 const fileOf=(r:Rec)=>r.type==='player'||r.type==='venue'?'players.json':r.type==='shot'||r.type==='deck'?'catalogue.json':r.type==='practice'||r.type==='attempt'?`practice/${r.type==='practice'?r.id:r.d.s}.json`:`sessions/${r.type==='session'?r.id:r.d.s}.json`;
 const strip=(r:Rec)=>({id:r.id,type:r.type,u:r.u,del:r.del,d:r.type==='flag'&&r.d.photo?{...r.d,photo:undefined}:r.d});   // flag photos are local-only
 export async function sync(say:(m:string)=>void){
-  const c=getCfg();if(!c.repo||!c.token)throw new Error('Set up sync first (Sync tab).');
+  const c=getCfg();if(!c.repo||!c.token)throw new Error('Set up sync first (More → Sync).');
   if(localStorage.getItem('ct.shas')===null)await db.recs.toCollection().modify({dirty:1}); // first run of per-session format
   const known:Record<string,string>=JSON.parse(localStorage.getItem('ct.shas')||'{}');
   const api=(p:string,o:RequestInit={})=>fetch(`https://api.github.com/repos/${c.repo}/${p}`,{...o,headers:{Authorization:`Bearer ${c.token}`,Accept:'application/vnd.github+json','Content-Type':'application/json'}});

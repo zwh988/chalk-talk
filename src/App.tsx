@@ -63,11 +63,11 @@ function Session(){
   const opts=ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>);
   const sel=(l:string,v:string,f:any,solo?:boolean)=><label>{l}<select value={v} onChange={e=>f(e.target.value)}><option value="">Choose…</option>{solo&&<option value="solo">Myself (solo practice)</option>}{opts}</select></label>;
   return <><h1>New session</h1>
-    {!ps.length?<p className="n">Add a player on the Players tab first.</p>:<div className="card">
+    {!ps.length?<p className="n">Add a player first (More → Players).</p>:<div className="card">
       <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
       <Seg items={[['singles','Singles'],['scotch','Scotch Doubles']]} cur={fmt} set={(v:string)=>{setF(v);if(v==='scotch'&&b==='solo')setB('')}}/>
       {sel(sc?'Our team · Player A':'Player 1',a,setA)}{sc&&sel('Our team · Player B',a2,setA2)}{sel(sc?'Opponent · Player A':'Player 2',b,setB,!sc)}{sc&&sel('Opponent · Player B',b2,setB2)}
-      <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues on the Venues tab.</div>}
+      <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues in More → Venues.</div>}
       <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
       <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:sc?[a,b]:[a,b==='solo'?a+'~2':b],solo:!sc&&b==='solo',...(sc?{fmt:'scotch',teams:[[a,a2],[b,b2]]}:{}),venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
 }

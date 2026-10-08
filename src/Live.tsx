@@ -6,12 +6,11 @@ import Photo from './Photo';
 import {derive,mate,sName} from './engine';
 import {sync} from './sync';
 import Avatar from './Avatar';
-import {Tip,Power,POW} from './Shots';
+import {Tip,Power,POW,tipLabel} from './Shots';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],ONE=['Pocketed','High of side','Low of side','Other'];
 const srt=(a:number[])=>[...a].sort((x,y)=>x-y);
 const Chips=({items,cur,set,w}:any)=><div className="row">{items.map((x:string,i:number)=><button key={i} className={'chip'+(cur===i?' on':'')} style={w?{minWidth:w,padding:'12px 2px'}:undefined} onClick={()=>set(i)}>{x}</button>)}</div>;
-const tipLabel=(t:number[])=>{const dx=t[0]-100,dy=t[1]-100,v=Math.abs(dy)<18?'centre':dy<0?'high':'low',h=Math.abs(dx)<18?'':dx<0?' left':' right';return v==='centre'&&!h?'dead centre':v+h};
 
 export default function Live({session,name,pr,end}:any){
   const pl:string[]=session.d.players,sid=session.id;
@@ -64,13 +63,13 @@ function Kitchen({z,set}:any){
 }
 const ctLabel=(ct:number)=>ct===4?'half ball':ct<4?'thinner than half':'thicker than half';
 function Contact({side,cf,set}:any){
-  const R=48,cx=120,cy=48,p=1-cf,s=side?1:-1,gx=cx+s*2*R*p,gy=cy+2*R*Math.sqrt(1-p*p);
+  const R=40,cx=120,cy=40,p=1-cf,s=side?1:-1,gx=cx+s*2*R*p,gy=cy+2*R*Math.sqrt(1-p*p);
   const upd=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*240-cx,q=Math.min(1,Math.abs(x)/(2*R));set(x<0?0:1,Math.max(1,Math.min(8,Math.round((1-q)*8)))/8)};
   const lines=[1,2,3,4,5,6,7,8].flatMap(k=>(k===8?[0]:[-1,1]).map(sg=>({k,x:cx+sg*2*R*(1-k/8)})));
   return <svg viewBox="0 0 240 172" style={{width:'100%',maxWidth:320,display:'block',margin:'auto',touchAction:'none'}} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);upd(e)}} onPointerMove={e=>{if(e.buttons)upd(e)}}>
     {lines.map(l=><g key={l.k+'_'+l.x}><line x1={l.x} y1={cy} x2={l.x} y2="160" stroke={l.k===4?'#e8a33d':'#9fd0e6'} strokeWidth={l.k===4?2:1} strokeDasharray={l.k===4?'6 3':'2 3'} opacity={l.k===4?1:.55}/>
       {l.k===4&&<text x={l.x} y="171" textAnchor="middle" fontSize="9" fill="#e8a33d">½</text>}</g>)}
-    <circle cx={cx} cy={cy} r={R} fill={BC[1]}/><text x={cx} y={cy+7} textAnchor="middle" fontSize="20" fontWeight="800" fill="#fff" opacity=".6">1</text>
+    <circle cx={cx} cy={cy} r={R} fill={BC[1]}/><text x={cx} y={cy+7} textAnchor="middle" fontSize="18" fontWeight="800" fill="#fff" opacity=".6">1</text>
     <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".85" stroke="#888" strokeDasharray="4 3"/>
     <circle cx={gx} cy={gy} r="4.5" fill="#c4513d" stroke="#fff" strokeWidth="1.5"/></svg>;
 }
@@ -127,7 +126,7 @@ function VisitForm({st,sid,name,pn,other,session}:any){
     <div className="strip">{[1,2,3,4,5,6,7,8,9].map(i=>{const on=st.table.includes(i);return <button key={i} disabled={!on||(push&&i===9)} className={'b'+(!on?' gone':P.includes(i)?' pot':'')+((res==='Missed'||res==='Foul')&&!won&&i===rem[0]?' now':'')+(fl.includes(i)?' fl':'')} style={{['--c' as any]:BC[i]}} onClick={()=>tap(i)}>{i}</button>})}</div>
     <div className="n">{won?`9 down · rack won${rem.length?` (${rem.join(', ')} still up)`:' · run out'}`:P.length?`Potted ${srt(P).join(', ')}${oo.length?` · out of order: ${oo.join(', ')}`:''}`:'Tap the last ball you potted. Tap a potted ball to take it back.'}</div>
     <div className="lbl">Opening shot</div>
-    <div className="row">{[['Easy','Clear shot'],['Hard','Tough shot'],['None','No shot']].map(([v,t])=><button key={v} className={'chip'+(open===v?' on':'')} onClick={()=>choose(v)}>{v==='None'?'No shot':v}<small>{t}</small></button>)}</div>
+    <div className="row">{[['Easy','Clear shot'],['Hard','Tough shot'],['None','No shot']].map(([v,t])=><button key={v} className={'chip'+(open===v?' on':'')} onClick={()=>choose(v)}>{v==='None'?'No shot':v}<small>{v==='None'?'\u00a0':t}</small></button>)}</div>
     {open&&<><div className="lbl">Board state</div>
       <div className="row">{['Clear','Problem'].map(b=><button key={b} className={'chip'+(board===b?' on':'')} onClick={()=>setBoard(b)}>{b==='Clear'?'Clean':b}</button>)}</div>
       {board==='Problem'&&<><div className="lbl">Which ball(s) are the problem?</div><div className="row">{st.table.map((i:number)=><button key={i} className={'chip'+(prob.includes(i)?' on':'')} style={{minWidth:40,padding:'10px 4px'}} onClick={()=>setProb(prob.includes(i)?prob.filter(x=>x!==i):[...prob,i])}>{i}</button>)}</div></>}</>}

@@ -83,7 +83,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
   };
   const pick=(n:number)=>{setSel(n);setMode('balls');if(!d.balls.some((b:any)=>b.n===n))put(n,{x:30+n*4,y:25})};
   const m=measure(d);
-  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Optional bank points: tap where the object ball travels, in order, on its way to the pocket.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
+  const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
     <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d,shots,id)}</b></div>
     {flag&&(flag.d.photo||flag.d.note)&&<div className="card">{flag.d.photo&&<Photo src={flag.d.photo} style={{width:'100%',height:'auto',maxHeight:'70vh',objectFit:'contain',borderRadius:8}}/>}{flag.d.note&&<div className="n" style={{marginTop:6}}>Flag note: {flag.d.note}</div>}</div>}

@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,ofType} from './db';
 import {playerStats,breakStats} from './stats';
-import {attrs,rating,rankOf,progress,ATTRS,PROV} from './rating';
+import {attrs,rating,rankOf,progress,confidence,confLabel,ATTRS,PROV} from './rating';
 import Avatar from './Avatar';
 import {periods,ppDelta} from './delta';
 const pc=(w:number,n:number)=>n?Math.round(w/n*100):0;
@@ -29,11 +29,11 @@ export default function Stats({kind}:{kind:string}){
   const mine=gr(sel),groups=win==='all'?mine:mine.slice(0,4);
   const s=kind==='players'?playerStats(sel,groups):null,b=kind==='breaks'?breakStats(sel,groups):null;
   const cnt=(o:any)=>`Easy ${o.Easy} · Hard ${o.Hard} · No shot ${o.None}`;
-  const at=attrs(sel,mine),R=rating(at),pg=progress(R),ca=cmp?attrs(cmp,gr(cmp)):null;
+  const at=attrs(sel,mine),R=rating(at),cf=confidence(at),pg=progress(R),ca=cmp?attrs(cmp,gr(cmp)):null;
   const cur=attrs(sel,mine.slice(0,4)),prev=attrs(sel,mine.slice(4,8));
   // Recent change: completed sessions only (newest first), latest 4 vs the 4 before; stats are recomputed over each combined period.
   const per=periods(gr(sel,true)),sc=per&&s?playerStats(sel,per.cur):null,sp=per&&s?playerStats(sel,per.prev):null,bc=per&&b?breakStats(sel,per.cur):null,bp=per&&b?breakStats(sel,per.prev):null;
-  const dR=per&&s?rating(attrs(sel,per.cur))-rating(attrs(sel,per.prev)):null,dd=(c:any,p:any,f:(x:any)=>number[])=>c&&p?ppDelta(f(c),f(p)):null;
+  const dR=(()=>{if(!per||!s)return null;const a=attrs(sel,per.cur),p=attrs(sel,per.prev),m=a.map((x,i)=>x.n>0&&p[i].n>0);return m.some(Boolean)?rating(a,m)-rating(p,m):null})(),dd=(c:any,p:any,f:(x:any)=>number[])=>c&&p?ppDelta(f(c),f(p)):null;
   const tr=(i:number)=>prev[i].n>=PROV[i]/2&&cur[i].n>0?Math.round(cur[i].raw-prev[i].raw):null;
   return <>
     <select value={sel} onChange={e=>setPid(e.target.value)} style={{marginBottom:8}}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
@@ -42,11 +42,11 @@ export default function Stats({kind}:{kind:string}){
     <div className="n" style={{marginBottom:10}}>{groups.length} session{groups.length===1?'':'s'} · faded graphs have fewer than 5 observations</div>
     {per&&(s||b)&&<div className="n" style={{marginTop:-6,marginBottom:10}}>Change: latest 4 sessions vs previous 4 sessions</div>}
     {s&&<>
-      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1}}><div className="n">{me?.d.name} · all sessions</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}</div><div style={{fontSize:46,fontWeight:900,color:'var(--cloth)'}}>{rankOf(R)}</div></div>
+      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1}}><div className="n">{me?.d.name} · all sessions</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}<div className="n">Confidence: <b>{confLabel(cf)}</b> · {Math.round(cf*100)}% of needed data</div></div><div style={{fontSize:46,fontWeight:900,color:'var(--cloth)'}}>{rankOf(R)}</div></div>
         <div className="bar" style={{margin:'10px 0'}}><i style={{width:pg.pct*100+'%'}}/></div>
         <Radar a={at.map(x=>x.adj)} b={ca?ca.map(x=>x.adj):null}/>
         <select value={cmp} onChange={e=>setCmp(e.target.value)} style={{marginTop:8}}><option value="">Compare with…</option>{ps.filter(p=>p.id!==sel).map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
-        {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{Math.round(at[i].adj)}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:at[i].adj+'%'}}/></div></div>)}</div>
+        {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}<span className="n"> · n={at[i].n}</span>{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{Math.round(at[i].adj)}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:at[i].adj+'%'}}/></div></div>)}</div>
       <div className="card"><h2>Run-out from chance</h2><div className="row" style={{justifyContent:'center'}}><Donut w={s.won} n={s.shot} label="all chances" d={dd(sc,sp,x=>[x.won,x.shot])}/></div>
         {['Easy/Clear','Easy/Problem','Hard/Clear','Hard/Problem'].map(k=>{const g=s.grid[k]||{n:0,w:0};return <HBar key={k} l={k.replace('/',' · ')} w={g.w} n={g.n} d={dd(sc,sp,x=>{const q=x.grid[k]||{n:0,w:0};return [q.w,q.n]})}/>})}</div>
       <div className="card"><h2>Balls run</h2><div className="row" style={{justifyContent:'center'}}><Donut w={s.potted} n={s.onTable} label="conversion" d={dd(sc,sp,x=>[x.potted,x.onTable])}/></div><div className="n" style={{textAlign:'center'}}>Balls potted per chance visit</div><Cols vals={s.dist} labels={['0','1–2','3–4','5+']}/></div>

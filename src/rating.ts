@@ -1,6 +1,6 @@
 import {walk,isMe} from './stats';
 import type {Rec} from './db';
-import {W,K,PROV,AN,RANKS,ATTRS} from './ratingConfig';
+import {W,PROV,AN,RANKS,ATTRS} from './ratingConfig';
 export {ATTRS,PROV};
 const sc=(r:number,k:[number,number])=>Math.max(0,Math.min(100,(r-k[0])/(k[1]-k[0])*100));
 const avg=(xs:(number|null)[])=>{const v=xs.filter((x):x is number=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
@@ -29,9 +29,17 @@ export function attrs(pid:string,groups:Rec[][]){
     {raw:t.brk?.3*sc(t.brkOK/t.brk,AN.brkOK)+.3*sc(t.brkBalls/t.brk,AN.brkBalls)+.3*sc(t.brkRun/t.brk,AN.brkRun)+.1*sc(1-t.brkScr/t.brk,AN.brkClean):null,n:t.brk},
     {raw:avg([t.safe?sc(t.held/t.safe,AN.held):null,t.escTry?sc(t.escOK/t.escTry,AN.esc):null]),n:t.safe+t.escTry},
     {raw:t.visits?avg([sc(t.fouls/t.visits,AN.foul),sc(t.decision/t.visits,AN.decision),t.noShot?sc(t.noShotMiss/t.noShot,AN.scrap):null]):null,n:t.visits}];
-  return A.map((a,i)=>{const raw=a.raw??50;return {raw,n:a.n,adj:50+(raw-50)*a.n/(a.n+K[i]),prov:a.n<PROV[i]}});
+  // No shrinkage toward 50: `adj` is the raw score (50 only as a placeholder when an attribute has no data). How much to trust it is `conf`, not a pull to average.
+  return A.map((a,i)=>{const raw=a.raw??50;return {raw,n:a.n,adj:raw,prov:a.n<PROV[i],conf:Math.min(1,a.n/PROV[i])}});
 }
-export const rating=(a:{adj:number}[])=>a.reduce((s,x,i)=>s+x.adj*W[i],0)*10;
+// Rating = weighted mean of the attributes that have data (weights renormalised over those), ×10. No data at all = 500.
+// `only` limits it to chosen attributes, so two periods can be compared like for like.
+export const rating=(a:{adj:number;n:number}[],only?:boolean[])=>{let s=0,w=0;a.forEach((x,i)=>{if(x.n>0&&(!only||only[i])){s+=x.adj*W[i];w+=W[i]}});return w?s/w*10:500};
+// Confidence (0–1): how much of the evidence the rating needs has been logged = importance-weighted share of each attribute's provisional sample size (PROV), capped at 1.
+export const confidence=(a:{conf:number}[])=>a.reduce((s,x,i)=>s+W[i]*x.conf,0)/W.reduce((s:number,x:number)=>s+x,0);
+// Labels for the confidence score. Lives here because ratingConfig.ts wasn't to hand; move it there with the other tunables.
+export const CONF:[number,string][]=[[.4,'Low'],[.75,'Medium'],[1.01,'High']];
+export const confLabel=(c:number)=>CONF.find(l=>c<l[0])![1];
 export const rankIx=(r:number)=>RANKS.reduce((b,[,f],i)=>r>=f?i:b,0);
 export const rankOf=(r:number)=>RANKS[rankIx(r)][0];
 export const progress=(r:number)=>{const i=rankIx(r),lo=RANKS[i][1],nx=RANKS[i+1];return nx?{next:nx[0],left:Math.ceil(nx[1]-r),pct:(r-lo)/(nx[1]-lo)}:{next:null,left:0,pct:1}};

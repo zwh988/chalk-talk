@@ -29,6 +29,9 @@ input,select{display:block;width:100%;margin-top:4px;padding:12px;border:1px sol
 .chip.opt{background:none;border:1px dashed var(--mute)}
 .link{background:none;border:0;color:var(--cloth);font:600 var(--fs-m) var(--font);padding:8px 0;text-decoration:underline}
 .danger{color:var(--bad);border-color:var(--bad)}
+.go.danger{background:var(--bad);color:#fff}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet>.card{width:100%;max-width:760px;margin:0;border-radius:14px 14px 0 0;max-height:90dvh;overflow:auto;padding-bottom:calc(14px + env(safe-area-inset-bottom))}
 .strip{display:flex;justify-content:space-between;gap:4px;margin:10px 0 6px}
 .b{width:100%;max-width:46px;aspect-ratio:1;border-radius:50%;border:3px solid var(--c);background:var(--c);color:#fff;font:800 var(--fs-b) var(--font);display:grid;place-items:center;padding:0}
 .b.pot{background:transparent;color:var(--c);text-decoration:line-through}.b.gone{background:transparent;border:2px dashed var(--line);color:var(--line)}

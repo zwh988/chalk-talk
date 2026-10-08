@@ -1,10 +1,11 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
+import {tell} from './ui';
 const B=260;
 // Drag to move, slider to zoom. The circle shows exactly what the avatar will look like.
 export default function Cropper({file,onDone,onCancel}:any){
   const [img,setImg]=useState<ImageBitmap|null>(null),[z,setZ]=useState(1),[o,setO]=useState<any>(null),drag=useRef<any>(null);
   const url=useMemo(()=>URL.createObjectURL(file),[file]);
-  useEffect(()=>{createImageBitmap(file).then(setImg).catch(()=>{alert('Could not read that photo. Try a JPEG or PNG.');onCancel()})},[]);
+  useEffect(()=>{createImageBitmap(file).then(setImg).catch(()=>{tell('Could not read that photo. Try a JPEG or PNG.');onCancel()})},[]);
   if(!img)return null;
   const s=B/Math.min(img.width,img.height)*z;
   const cl=(x:number,y:number)=>({x:Math.min(0,Math.max(B-img.width*s,x)),y:Math.min(0,Math.max(B-img.height*s,y))});

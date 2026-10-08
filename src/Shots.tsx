@@ -2,6 +2,7 @@ import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {save,drop,ofType,uid} from './db';
 import Photo from './Photo';
+import {ask} from './ui';
 const BC=['#f5f2e8','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
@@ -106,7 +107,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
       <label>Shot by<select value={d.by} onChange={e=>setD({...d,by:e.target.value})}>{players.map((p:any)=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
       <label>Note<input value={d.note} onChange={e=>setD({...d,note:e.target.value})}/></label>
       <button className="go" onClick={async()=>{let tg=(d.tag||'').trim();const ex=shots.find((x:any)=>x.d.tag&&x.d.tag.toLowerCase()===tg.toLowerCase());if(ex)tg=ex.d.tag;const sid=id||uid();await save('shot',{...d,tag:tg,pw:pw(d),speed:undefined,tagNo:undefined},sid);if(flag&&flag.d.status!=='converted')await save('flag',{...flag.d,status:'converted',shot:sid},flag.id);onDone()}}>Save shot</button>
-      {id&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm('Delete this shot?')&&drop(id).then(onDone)}>Delete shot</button>}</div></>;
+      {id&&<button className="ghost danger" style={{marginTop:8}} onClick={async()=>{if(await ask('Delete this shot?','Delete shot')){await drop(id);onDone()}}}>Delete shot</button>}</div></>;
 }
 export const ShotCard=({s,all,nm,onClick,sub}:any)=>{const m=measure(s.d);return <button className="card shotcard" onClick={onClick}>
   <div style={{width:140,flex:'none'}}><Table d={s.d} small/></div>
@@ -123,7 +124,7 @@ function Flags({fgs,ss,onBack,onCreate}:any){
     {!pend.length&&<p className="n">Nothing waiting. Tap ⚑ Flag shot during a visit to capture one.</p>}
     {pend.map((x:any)=><div key={x.id} className="card">{x.d.photo&&<Photo src={x.d.photo} style={{width:'100%',height:'auto',maxHeight:'70vh',objectFit:'contain',borderRadius:8,marginBottom:8}}/>}
       <div>{x.d.note||<span className="n">No note</span>}</div><div className="n">{at(x)} · {x.d.venue||'No venue'}</div><div className="n">{ctx(x)}</div>
-      <div className="row" style={{marginTop:8}}><button className="go sm" onClick={()=>onCreate(x)}>Create shot</button><button className="ghost" onClick={()=>confirm('Delete this flag?')&&drop(x.id)}>Delete</button></div></div>)}
+      <div className="row" style={{marginTop:8}}><button className="go sm" onClick={()=>onCreate(x)}>Create shot</button><button className="ghost danger" onClick={async()=>{if(await ask('Delete this flag?','Delete flag'))drop(x.id)}}>Delete</button></div></div>)}
     {done.length>0&&<><h2 style={{marginTop:16}}>Converted ({done.length})</h2>{done.map((x:any)=>{const sh=ss.find((q:any)=>q.id===x.d.shot);return <div key={x.id} className="srow"><span>{x.d.note||'Flag'} <span className="n">{at(x)}</span></span><b>→ {sh?title(sh.d,ss,sh.id):'deleted shot'}</b></div>})}</>}</>;
 }
 export default function Shots({seg}:any){

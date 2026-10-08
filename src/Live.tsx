@@ -6,6 +6,7 @@ import Photo from './Photo';
 import {derive,mate,sName} from './engine';
 import {sync} from './sync';
 import Avatar from './Avatar';
+import {Sheet} from './ui';
 import {Tip,Power,POW,tipLabel} from './Shots';
 const BC=['','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const Z=['L3','L2','L1','C','R1','R2','R3'],C=['−3','−2','−1','½','+1','+2','+3'],ONE=['Pocketed','High of side','Low of side','Other'];
@@ -16,16 +17,18 @@ export default function Live({session,name,pr,end}:any){
   const pl:string[]=session.d.players,sid=session.id;
   const evs=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del&&r.d.s===sid).toArray().then(a=>a.sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u))),[sid])||[];
   const dirty=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])??0;
-  const [ce,setCe]=useState(false),[msg,setMsg]=useState('');
+  const [ce,setCe]=useState(false),[msg,setMsg]=useState(''),[bz,setBz]=useState(false);
   const tm:string[][]|undefined=session.d.fmt==='scotch'?session.d.teams:undefined,sn=(id:string)=>sName(session.d,id,name);
   const st=derive(pl,evs,tm);
   const other=(p:string)=>pl[1-pl.indexOf(p)];
   const last=[...evs].reverse().find(e=>e.type==='break'&&!e.d.skip)?.d;
   const k=evs.length;
   const safeOk=(i:number)=>{const e=evs[i].d;if(e.safeOk!=null)return e.safeOk;const nx=evs.slice(i+1).find(x=>x.type==='visit'&&x.d.rack===e.rack);return nx?['None','Hard'].includes(nx.d.open):null};
-  const doEnd=async(withSync:boolean)=>{try{if(withSync)await sync(setMsg);await end();if(withSync)await sync(()=>{}).catch(()=>{})}catch(e:any){setMsg(e.message)}};
-  return <><div className="row" style={{marginBottom:10}}><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button><button className="ghost" onClick={()=>dirty?setCe(true):end()}>End session</button>{dirty>0&&<span className="n">{dirty} unsynced</span>}</div>
-    {ce&&<div className="card"><b>{dirty} change{dirty===1?'':'s'} not synced to GitHub.</b><div className="row" style={{marginTop:8}}><button className="chip" onClick={()=>doEnd(true)}>Sync and end</button><button className="chip" onClick={()=>doEnd(false)}>End anyway</button><button className="chip" onClick={()=>setCe(false)}>Cancel</button></div><div className="n">{msg}</div></div>}
+  const doEnd=async(withSync:boolean)=>{setBz(true);try{if(withSync)await sync(setMsg);await end();if(withSync)await sync(()=>{}).catch(()=>{})}catch(e:any){setMsg(e.message)}setBz(false)};
+  return <><div className="row" style={{marginBottom:k?4:10}}><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button>{dirty>0&&<span className="n">{dirty} unsynced</span>}<button className="ghost danger" style={{marginLeft:'auto'}} onClick={()=>setCe(true)}>End session</button></div>
+    {k>0&&<div className="n" style={{margin:'0 0 10px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>Last logged: {line(evs[k-1],sn,name)}</div>}
+    {ce&&<Sheet onClose={()=>!bz&&setCe(false)}><h2>End session?</h2>{dirty>0&&<div className="n"><b>{dirty} change{dirty===1?'':'s'} not synced to GitHub.</b></div>}{msg&&<div className="n" role="status">{msg}</div>}
+      <div className="row" style={{marginTop:8}}>{dirty>0?<><button className="go sm" style={{flex:1}} disabled={bz} onClick={()=>doEnd(true)}>{bz?'Syncing…':'Sync and end'}</button><button className="ghost danger" disabled={bz} onClick={()=>doEnd(false)}>End anyway</button></>:<button className="go sm danger" style={{flex:1}} disabled={bz} onClick={()=>doEnd(false)}>End session</button>}<button className="ghost" disabled={bz} onClick={()=>setCe(false)}>Cancel</button></div></Sheet>}
     {session.d.name&&<div className="n">{session.d.name}</div>}<div className="hdr"><h1>Rack {st.rack}</h1><b style={{display:'flex',alignItems:'center',gap:6}}><Avatar p={pr(pl[0])} size={26}/>{sn(pl[0])} {st.scores[0]} – {st.scores[1]} {sn(pl[1])}<Avatar p={pr(pl[1])} size={26}/></b></div>
     {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={sn} pn={name} other={other} session={session}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={sn} pn={name} other={other} session={session}/>}
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
@@ -137,11 +140,11 @@ function VisitForm({st,sid,name,pn,other,session}:any){
     <div className="row"><button className="chip opt" onClick={()=>setFm(true)}>⚑ Flag shot</button><button className="chip opt" onClick={()=>setFp(true)}>✦ Fluke</button></div>
     {fp&&<><div className="lbl">Which ball fluked?</div><div className="row">{[...st.table.map(String),'Skip'].map(b=><button key={b} className="chip" style={{minWidth:40}} onClick={()=>{setFl([...fl,+b||0]);setFp(false)}}>{b}</button>)}</div></>}
     <div className="tags">{fl.map((f,i)=><span key={i} className="tag f">✦ Fluke{f?' · '+f:''}<button className="x" onClick={()=>setFl(fl.filter((_,q)=>q!==i))}>✕</button></span>)}{fgs.length>0&&<span className="tag g">⚑ Flags: {fgs.length}<button className="x" onClick={()=>{drop(fgs[fgs.length-1]);setFgs(fgs.slice(0,-1))}}>✕</button></span>}</div>
-    {fm&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:50,display:'flex',alignItems:'flex-end'}}><div className="card" style={{width:'100%',margin:0}}><h2>Flag shot</h2>
+    {fm&&<Sheet><h2>Flag shot</h2>
       <input value={fn} onChange={e=>setFn(e.target.value)} placeholder="Quick note (optional)" autoFocus/>
       <div className="row" style={{margin:'10px 0'}}><label className="chip opt">📷 {fph?'Retake':'Camera'}<input type="file" accept="image/*" capture="environment" className="file" onChange={pickPh}/></label><label className="chip opt">🖼 Choose<input type="file" accept="image/*" className="file" onChange={pickPh}/></label>{fph&&<button className="chip opt" onClick={()=>setFph('')}>Remove photo</button>}</div>
       {fph&&<Photo src={fph} style={{width:'100%',height:'auto',maxHeight:'45vh',objectFit:'contain',borderRadius:8,marginBottom:10}}/>}
-      <div className="row"><button className="ghost" onClick={()=>{setFm(false);setFn('');setFph('')}}>Cancel</button><button className="go sm" style={{flex:1}} onClick={addFlag}>Save flag</button></div></div></div>}
+      <div className="row"><button className="ghost" onClick={()=>{setFm(false);setFn('');setFph('')}}>Cancel</button><button className="go sm" style={{flex:1}} onClick={addFlag}>Save flag</button></div></Sheet>}
     <button className="go" disabled={!res||(!open&&!push)||(['Missed','Foul'].includes(res)&&open!=='None'&&!cause)} onClick={()=>push?setAsk(true):finish(false)}>{won?`Log visit · ${name(by)} wins rack ${st.rack}`:'Log visit'}</button>
-    {ask&&<div className="card"><b>Push out played</b><div className="n">Potted balls stay down. The 9 is respotted.</div><div className="row"><button className="chip" onClick={()=>finish(false)}>{name(o)} shoots it</button><button className="chip" onClick={()=>finish(true)}>Passes it back</button></div></div>}</div>;
+    {ask&&<Sheet onClose={()=>setAsk(false)}><h2>Push out played</h2><div className="n">Potted balls stay down. The 9 is respotted.</div><div className="row"><button className="chip" onClick={()=>finish(false)}>{name(o)} shoots it</button><button className="chip" onClick={()=>finish(true)}>Passes it back</button></div><button className="ghost" style={{marginTop:10}} onClick={()=>setAsk(false)}>Cancel</button></Sheet>}</div>;
 }

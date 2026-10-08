@@ -4,12 +4,13 @@ import {db,save,drop,ofType} from './db';
 import {shotStats,tally,ago,mastery,level,PC} from './practice';
 import {ShotCard,title} from './Shots';
 import Practice from './Practice';
+import {ask} from './ui';
 const lc=(s:any)=>(s||'').toLowerCase();
 // A deck's shots are resolved at read time: smart = tag/player rule over the whole library, custom = explicit shot ids. Nothing is copied or stored.
 export const deckShots=(k:any,ss:any[])=>(k.kind==='custom'?ss.filter(s=>(k.shotIds||[]).includes(s.id)):ss.filter(s=>(!k.rule?.tag||lc(s.d.tag)===lc(k.rule.tag))&&(!k.rule?.by||s.d.by===k.rule.by))).sort((a,b)=>lc(a.d.tag).localeCompare(lc(b.d.tag))||a.d.no-b.d.no);
 const sum=(k:any,nm:any)=>k.kind==='custom'?'Custom':k.rule?.tag||k.rule?.by?['Smart',k.rule.tag&&`tag ${k.rule.tag}`,k.rule.by&&`by ${nm(k.rule.by)}`].filter(Boolean).join(' · '):'Smart · all shots';
 const Bars=({v,l}:any)=>{const W=300/v.length;return <svg viewBox="0 0 300 100" style={{width:'100%'}}>{v.map((x:number,i:number)=><g key={i}><rect x={i*W+6} y={80-x*.66} width={W-12} height={x*.66} rx="3" fill="var(--cloth)"/><text x={i*W+W/2} y="95" textAnchor="middle" fontSize="9" fill="var(--mute)">{l[i]}</text><text x={i*W+W/2} y={76-x*.66} textAnchor="middle" fontSize="9" fill="var(--ink)">{x}</text></g>)}</svg>};
-const Hist=({xs,at,nm,del,deck}:any)=><>{xs.map((x:any)=>{const t=tally(at.filter((a:any)=>a.d.s===x.id));return <div key={x.id} className="srow"><span>{new Date(x.d.start).toLocaleDateString()} · {nm(x.d.by)}{deck?` · ${x.d.deckName}`:''}{x.d.venue?` · ${x.d.venue}`:''} <span className="n">{t.made}/{t.n}</span></span><button className="ghost" onClick={()=>confirm('Delete this session and its attempts?')&&del([x.id])}>Delete</button></div>})}</>;
+const Hist=({xs,at,nm,del,deck}:any)=><>{xs.map((x:any)=>{const t=tally(at.filter((a:any)=>a.d.s===x.id));return <div key={x.id} className="srow"><span>{new Date(x.d.start).toLocaleDateString()} · {nm(x.d.by)}{deck?` · ${x.d.deckName}`:''}{x.d.venue?` · ${x.d.venue}`:''} <span className="n">{t.made}/{t.n}</span></span><button className="ghost danger" onClick={async()=>{if(await ask('Delete this session and its attempts?'))del([x.id])}}>Delete</button></div>})}</>;
 const blank=()=>({name:'',kind:'smart',rule:{tag:'',by:''},shotIds:[] as string[],c:Date.now()});
 function DeckEditor({init,ss,ps,onDone}:any){
   const [d,setD]=useState<any>(init.d),[tf,setTf]=useState('');
@@ -41,7 +42,7 @@ export default function Decks({seg}:any){
     const need=mine.map(s=>({s,p:mastery(st[s.id])!})).filter(o=>o.p<PC.levels[1][0]).sort((a,b)=>a.p-b.p).slice(0,3),lastP=Math.max(0,...mine.map(s=>st[s.id].last)),ses=hist.filter(x=>x.d.by===who).sort((a,b)=>a.d.start-b.d.start).map(x=>({x,t:tally(at.filter(a=>a.d.s===x.id))})).filter(o=>o.t.n).slice(-8);return <><button className="back" onClick={()=>setSel(null)}>‹ Decks</button><h1>{k.d.name}</h1>
     <div className="n">{sum(k.d,nm)} · {sh.length} shot{sh.length===1?'':'s'} · created {new Date(k.d.c??k.u).toLocaleDateString()}</div>
     <button className="go" style={{margin:'10px 0'}} disabled={!sh.length} onClick={()=>setPr(k)}>Start practice</button>
-    <div className="row" style={{marginBottom:10}}><button className="ghost" onClick={()=>setEd(k)}>Edit</button><button className="ghost" onClick={()=>confirm(`Delete deck "${k.d.name}"? The shots and practice history are kept.`)&&drop(k.id).then(()=>setSel(null))}>Delete</button></div>
+    <div className="row" style={{marginBottom:10}}><button className="ghost" onClick={()=>setEd(k)}>Edit</button><button className="ghost danger" onClick={async()=>{if(await ask(`Delete deck "${k.d.name}"? The shots and practice history are kept.`,'Delete deck')){await drop(k.id);setSel(null)}}}>Delete</button></div>
     {!sh.length&&<p className="n">No shots in this deck yet.</p>}
     {ps.length>0&&<><select value={who} onChange={e=>setPid(e.target.value)} style={{marginBottom:6}}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
       <div className="n" style={{marginBottom:8}}>{tot.n?`${tot.n} attempts · ${Math.round(tot.m/tot.n*100)}% made · ${mine.length} of ${sh.length} shots practiced`:'No practice yet'}</div></>}
@@ -51,7 +52,7 @@ export default function Decks({seg}:any){
       {need.length>0&&<><div className="n" style={{marginTop:8}}>Needs attention</div>{need.map(o=><div key={o.s.id} className="srow"><span>{title(o.s.d,ss,o.s.id)}</span><span className="n">{level(o.p)} · recent {st[o.s.id].recent.made}/{st[o.s.id].recent.n}</span></div>)}</>}</div>}
     {sh.map(s=>{const x=st[s.id];return <ShotCard key={s.id} s={s} all={ss} nm={nm} sub={x?`${x.made}/${x.n} · ${Math.round(x.rate*100)}% · last ${ago(x.last)} · recent ${x.recent.made}/${x.recent.n}`:'Not practiced yet'}/>})}
     {hist.length>0&&<div className="card"><h2>Practice history</h2><Hist xs={hist} at={at} nm={nm} del={delS}/>
-      {hist.some(x=>x.d.by===who)&&<button className="ghost" style={{marginTop:8}} onClick={()=>confirm(`Delete all of ${nm(who)}'s practice sessions for this deck?`)&&delS(hist.filter(x=>x.d.by===who).map(x=>x.id))}>Reset {nm(who)}'s history for this deck</button>}</div>}</>}
+      {hist.some(x=>x.d.by===who)&&<button className="ghost danger" style={{marginTop:8}} onClick={async()=>{if(await ask(`Delete all of ${nm(who)}'s practice sessions for this deck?`,'Reset history'))delS(hist.filter(x=>x.d.by===who).map(x=>x.id))}}>Reset {nm(who)}'s history for this deck</button>}</div>}</>}
   return <>{seg}<div className="hdr"><h1>Decks</h1><button className="go sm" onClick={()=>setEd({d:blank()})}>New deck</button></div>
     {!ks.length&&<p className="n">No decks yet. A smart deck follows a tag or player; a custom deck is hand-picked.</p>}
     {ks.map(x=><button key={x.id} className="card" style={{width:'100%',textAlign:'left',color:'var(--ink)',font:'inherit'}} onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {deckShots(x.d,ss).length} shots</div></button>)}

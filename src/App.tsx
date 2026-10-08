@@ -10,6 +10,7 @@ import Decks from './Decks';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
+import {ask,tell,Dialogs} from './ui';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
 type Tab='play'|'review'|'shots'|'more';
@@ -22,7 +23,7 @@ const ICONS:Record<Tab,any>={
 export default function App(){
   const [tab,setTab]=useState<Tab>('play');
   return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<ShotsHome/>:<More/>}</main>
-    <nav>{(Object.keys(ICONS) as Tab[]).map(t=><button key={t} aria-label={LABEL[t]} className={tab===t?'on':''} onClick={()=>setTab(t)}>{ICONS[t]}</button>)}</nav></div>;
+    <nav>{(Object.keys(ICONS) as Tab[]).map(t=><button key={t} aria-label={LABEL[t]} className={tab===t?'on':''} onClick={()=>setTab(t)}>{ICONS[t]}</button>)}</nav><Dialogs/></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
 function ShotsHome(){const [v,setV]=useState('shots'),seg=<Seg items={[['shots','Shots'],['decks','Decks']]} cur={v} set={setV}/>;return v==='shots'?<Shots seg={seg}/>:<Decks seg={seg}/>}
@@ -44,7 +45,7 @@ function Players(){
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
       <label className="avatar-btn"><Avatar p={p} size={44}/><input type="file" accept="image/*" className="file" onChange={e=>pickPic(e,p)}/></label>
       <input defaultValue={p.d.name} onBlur={e=>e.target.value.trim()&&e.target.value!==p.d.name&&save('player',{...p.d,name:e.target.value.trim()},p.id)}/>
-      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)||(s.d.teams||[]).flat().includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
+      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost danger" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)||(s.d.teams||[]).flat().includes(p.id)).length;if(used){await tell(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(await ask(`Delete ${p.d.name}?`,'Delete player'))drop(p.id)}}>Delete</button></div>)}
     <div className="card row"><input placeholder="New player name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><button className="go sm" onClick={add}>Add</button></div></>;
 }
 // Solo practice: seat 2 is a virtual player id `<id>~2`, so the engine sees two sides. Always look players up through base().

@@ -44,7 +44,7 @@ function Players(){
     {ps.map(p=><div className={'card row'+(p.d.archived?' arch':'')} key={p.id+p.u}>
       <label className="avatar-btn"><Avatar p={p} size={44}/><input type="file" accept="image/*" className="file" onChange={e=>pickPic(e,p)}/></label>
       <input defaultValue={p.d.name} onBlur={e=>e.target.value.trim()&&e.target.value!==p.d.name&&save('player',{...p.d,name:e.target.value.trim()},p.id)}/>
-      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
+      <button className="ghost" onClick={()=>save('player',{...p.d,archived:!p.d.archived},p.id)}>{p.d.archived?'Restore':'Archive'}</button><button className="ghost" onClick={async()=>{const used=(await ofType('session')).filter(s=>s.d.players.includes(p.id)||(s.d.teams||[]).flat().includes(p.id)).length;if(used){alert(`${p.d.name} is in ${used} session${used>1?'s':''}. Archive instead, or delete those sessions first.`);return}if(confirm(`Delete ${p.d.name}?`))drop(p.id)}}>Delete</button></div>)}
     <div className="card row"><input placeholder="New player name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()}/><button className="go sm" onClick={add}>Add</button></div></>;
 }
 // Solo practice: seat 2 is a virtual player id `<id>~2`, so the engine sees two sides. Always look players up through base().
@@ -55,19 +55,21 @@ function Session(){
   const ss=useLiveQuery(()=>ofType('session'),[])||[];
   const vs=useLiveQuery(()=>ofType('venue'),[])||[];
   const active=ss.find(s=>!s.d.end);
-  const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [sname,setN]=useState('');const [tbl,setT]=useState('');
+  const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [sname,setN]=useState('');const [tbl,setT]=useState('');const [fmt,setF]=useState('singles'),[a2,setA2]=useState(''),[b2,setB2]=useState(''),sc=fmt==='scotch';
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
   const nm=(id:string)=>(all.find(p=>p.id===base(id))?.d.name??'?')+(id.includes('~')?' (2)':'');
   if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===base(id))} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
-  const ok=a&&b&&a!==b;
+  const ok=sc?[a,a2,b,b2].every(Boolean)&&new Set([a,a2,b,b2]).size===4&&b!=='solo':a&&b&&a!==b;
+  const opts=ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>);
+  const sel=(l:string,v:string,f:any,solo?:boolean)=><label>{l}<select value={v} onChange={e=>f(e.target.value)}><option value="">Choose…</option>{solo&&<option value="solo">Myself (solo practice)</option>}{opts}</select></label>;
   return <><h1>New session</h1>
     {!ps.length?<p className="n">Add a player on the Players tab first.</p>:<div className="card">
       <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
-      <label>Player 1<select value={a} onChange={e=>setA(e.target.value)}><option value="">Choose…</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
-      <label>Player 2<select value={b} onChange={e=>setB(e.target.value)}><option value="">Choose…</option><option value="solo">Myself (solo practice)</option>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></label>
+      <Seg items={[['singles','Singles'],['scotch','Scotch Doubles']]} cur={fmt} set={(v:string)=>{setF(v);if(v==='scotch'&&b==='solo')setB('')}}/>
+      {sel(sc?'Our team · Player A':'Player 1',a,setA)}{sc&&sel('Our team · Player B',a2,setA2)}{sel(sc?'Opponent · Player A':'Player 2',b,setB,!sc)}{sc&&sel('Opponent · Player B',b2,setB2)}
       <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues on the Venues tab.</div>}
       <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
-      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:[a,b==='solo'?a+'~2':b],solo:b==='solo',venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
+      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:sc?[a,b]:[a,b==='solo'?a+'~2':b],solo:!sc&&b==='solo',...(sc?{fmt:'scotch',teams:[[a,a2],[b,b2]]}:{}),venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
 }
 function Sync(){
   const [c,setC]=useState(getCfg());const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);

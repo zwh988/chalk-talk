@@ -9,6 +9,7 @@ export function attrs(pid:string,groups:Rec[][]){
   const t={shot:0,won:0,potted:0,onTable:0,made:0,potFail:0,posOK:0,posFail:0,brk:0,brkOK:0,brkBalls:0,brkRun:0,brkScr:0,safe:0,held:0,escOK:0,escTry:0,visits:0,fouls:0,decision:0,noShot:0,noShotMiss:0};
   for(const evs of groups){const it=walk(evs);
     it.forEach((x:any,i:number)=>{const d=x.e.d;
+      if(d.sp||d.bp)return;   // Scotch Doubles: not rated yet (no per-shot attribution in the rating)
       const next=()=>it.slice(i+1).find((y:any)=>y.kind==='visit'&&y.e.d.rack===d.rack);
       if(x.kind==='break'){if(!isMe(d.by,pid)||d.skip)return;
         const dr=d.drops.length+(d.one===0?1:0);t.brk++;t.brkBalls+=dr;if(d.scratch)t.brkScr++;if(!d.scratch&&(dr>0||d.nine))t.brkOK++;

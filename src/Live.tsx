@@ -3,7 +3,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,uid} from './db';
 import {shrink} from './photo';
 import Photo from './Photo';
-import {derive} from './engine';
+import {derive,mate,sName} from './engine';
 import {sync} from './sync';
 import Avatar from './Avatar';
 import {Tip,Power,POW} from './Shots';
@@ -18,7 +18,8 @@ export default function Live({session,name,pr,end}:any){
   const evs=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del&&r.d.s===sid).toArray().then(a=>a.sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u))),[sid])||[];
   const dirty=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])??0;
   const [ce,setCe]=useState(false),[msg,setMsg]=useState('');
-  const st=derive(pl,evs);
+  const tm:string[][]|undefined=session.d.fmt==='scotch'?session.d.teams:undefined,sn=(id:string)=>sName(session.d,id,name);
+  const st=derive(pl,evs,tm);
   const other=(p:string)=>pl[1-pl.indexOf(p)];
   const last=[...evs].reverse().find(e=>e.type==='break'&&!e.d.skip)?.d;
   const k=evs.length;
@@ -26,13 +27,14 @@ export default function Live({session,name,pr,end}:any){
   const doEnd=async(withSync:boolean)=>{try{if(withSync)await sync(setMsg);await end();if(withSync)await sync(()=>{}).catch(()=>{})}catch(e:any){setMsg(e.message)}};
   return <><div className="row" style={{marginBottom:10}}><button className="ghost" disabled={!k} onClick={()=>drop(evs[k-1].id)}>Undo last</button><button className="ghost" onClick={()=>dirty?setCe(true):end()}>End session</button>{dirty>0&&<span className="n">{dirty} unsynced</span>}</div>
     {ce&&<div className="card"><b>{dirty} change{dirty===1?'':'s'} not synced to GitHub.</b><div className="row" style={{marginTop:8}}><button className="chip" onClick={()=>doEnd(true)}>Sync and end</button><button className="chip" onClick={()=>doEnd(false)}>End anyway</button><button className="chip" onClick={()=>setCe(false)}>Cancel</button></div><div className="n">{msg}</div></div>}
-    {session.d.name&&<div className="n">{session.d.name}</div>}<div className="hdr"><h1>Rack {st.rack}</h1><b style={{display:'flex',alignItems:'center',gap:6}}><Avatar p={pr(pl[0])} size={26}/>{name(pl[0])} {st.scores[0]} – {st.scores[1]} {name(pl[1])}<Avatar p={pr(pl[1])} size={26}/></b></div>
-    {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={name} other={other}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={name} other={other} session={session}/>}
+    {session.d.name&&<div className="n">{session.d.name}</div>}<div className="hdr"><h1>Rack {st.rack}</h1><b style={{display:'flex',alignItems:'center',gap:6}}><Avatar p={pr(pl[0])} size={26}/>{sn(pl[0])} {st.scores[0]} – {st.scores[1]} {sn(pl[1])}<Avatar p={pr(pl[1])} size={26}/></b></div>
+    {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={sn} pn={name} other={other} session={session}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={sn} pn={name} other={other} session={session}/>}
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
-      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
+      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,sn,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
 }
-export function line(e:any,name:(id:string)=>string){
+export function line(e:any,name:(id:string)=>string,pn?:(id:string)=>string){
   const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
+  if(pn&&d.bp)p[0]=pn(d.bp);if(pn&&d.sp)p.push(pn(d.sp)+' starts');   // Scotch Doubles: the individual who broke / started the visit
   if(e.type==='break'){
     if(d.skip)p.push('Break not logged');
     else p.push('Break',d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,Z[d.z],POW[4+d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
@@ -72,16 +74,17 @@ function Contact({side,cf,set}:any){
     <circle cx={gx} cy={gy} r={R} fill="#f5f2e8" opacity=".85" stroke="#888" strokeDasharray="4 3"/>
     <circle cx={gx} cy={gy} r="4.5" fill="#c4513d" stroke="#fff" strokeWidth="1.5"/></svg>;
 }
-function BreakForm({st,sid,last,name,other}:any){
-  const [by,setBy]=useState(st.breaker);const [ask,setAsk]=useState(false);
+function BreakForm({st,sid,last,name,pn,other,session}:any){
+  const [by,setBy]=useState(st.breaker);const [ask,setAsk]=useState(false),[sw,setSw]=useState(false);
+  const duo=session.d.fmt==='scotch',bp=duo?(sw?mate(session.d.teams,st.up[by]):st.up[by]):'';
   const [z,setZ]=useState(last?.z??1),[cf,setCf]=useState<number>(last?.cf??(last?.ct??4)/8),[side,setSide]=useState(last?.side??0),[spd,setSpd]=useState(last?.spd??1);
   const [tip,setTip]=useState<number[]>(last?.tip??[100,128]);
   const [one,setOne]=useState<number|null>(null),[drops,setDrops]=useState<number[]>([]),[scratch,setSc]=useState(false),[nine,setNine]=useState(false);
   const o=other(by);const ct=Math.max(1,Math.min(8,Math.round(cf*8)));
   const log=()=>{const cont=!scratch&&!nine&&(one===0||drops.length>0);
-    save('break',{t:Date.now(),s:sid,rack:st.rack,by,z,ct,cf,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
-  const skip=(first:string)=>save('break',{t:Date.now(),s:sid,rack:st.rack,by,skip:true,drops:[],one:null,next:first});
-  return <div className="card"><div className="hdr"><b>{name(by)} breaks</b><button className="link" onClick={()=>setBy(o)}>Change breaker</button></div>
+    save('break',{t:Date.now(),s:sid,rack:st.rack,by,...(duo?{bp}:{}),z,ct,cf,side,spd,tip,one,drops,scratch,nine,next:cont||nine?by:o})};
+  const skip=(first:string)=>save('break',{t:Date.now(),s:sid,rack:st.rack,by,...(duo?{bp}:{}),skip:true,drops:[],one:null,next:first});
+  return <div className="card"><div className="hdr"><b>{duo?pn(bp):name(by)} breaks</b><span><button className="link" onClick={()=>{setBy(o);setSw(false)}}>Change {duo?'team':'breaker'}</button>{duo&&<button className="link" style={{marginLeft:10}} onClick={()=>setSw(!sw)}>Swap shooter</button>}</span></div>
     <div className="lbl">Contact on 1-ball · drag the cue ball around the 1-ball</div><Contact side={side} cf={cf} set={(sd:number,c:number)=>{setSide(sd);setCf(c)}}/>
     <div className="n" style={{textAlign:'center'}}>{ct===8?'Straight on · no cut':`${side?'Right':'Left'} · ${ct}/8 ball · ${ctLabel(ct)}`}</div>
     <div className="lbl">Cue ball position · {Z[z]}</div><Kitchen z={z} set={setZ}/>
@@ -95,10 +98,10 @@ function BreakForm({st,sid,last,name,other}:any){
     <button className="link" onClick={()=>setAsk(!ask)}>Skip break details</button>
     {ask&&<div><div className="lbl">Who shoots first?</div><div className="row">{[by,o].map(p=><button key={p} className="chip" onClick={()=>skip(p)}>{name(p)}</button>)}</div></div>}</div>;
 }
-function VisitForm({st,sid,name,other,session}:any){
+function VisitForm({st,sid,name,pn,other,session}:any){
   const [open,setOpen]=useState(''),[board,setBoard]=useState(st.prob?.length?'Problem':'Clear'),[prob,setProb]=useState<number[]>(st.prob||[]),[res,setRes]=useState(''),[P,setP]=useState<number[]>([]);
   const [cause,setCause]=useState(''),[fl,setFl]=useState<number[]>([]),[fgs,setFgs]=useState<string[]>([]),[fm,setFm]=useState(false),[fn,setFn]=useState(''),[fph,setFph]=useState(''),[vid]=useState(uid),[fp,setFp]=useState(false),[ask,setAsk]=useState(false);
-  const by=st.shooter,o=other(by),push=res==='Push out';
+  const by=st.shooter,o=other(by),push=res==='Push out',[sw,setSw]=useState(false),duo=session.d.fmt==='scotch',sp=duo?(sw?mate(session.d.teams,st.up[by]):st.up[by]):'';
   const outsFor=(op:string)=>{const p=st.first?['Push out']:[];return !op?p:op==='None'?['Won rack','Safe played','Escape hit','Missed','Foul',...p]:['Won rack','Missed','Safe played','Foul',...p]};
   const auto=(n:number[],rs:string,op:string)=>n.includes(9)?'Won rack':(rs==='Won rack'?'':rs)||(op&&n.length?'Missed':'');
   const rem=st.table.filter((x:number)=>!P.includes(x)),won=P.includes(9);
@@ -114,13 +117,13 @@ function VisitForm({st,sid,name,other,session}:any){
   const pick=(r:string)=>{setRes(r);if(r==='Won rack')setP([...st.table]);else if(r==='Escape hit')setP([]);else setP(P.filter(x=>x!==9))};
   const choose=(op:string)=>{setOpen(op);const ok=res==='Won rack'||outsFor(op).includes(res);setRes(ok?auto(P,res,op):auto(P,'',op))};
   const finish=async(pass:boolean)=>{
-    await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,oo,low:rem[0],cause,fl,fg:fgs.length,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length},vid);
+    await save('visit',{t:Date.now(),s:sid,rack:st.rack,by,...(duo?{sp}:{}),open:push?'':open,board:push?'':board,prob:board==='Problem'?prob:[],res:won?'Won rack':res,potted:P,oo,low:rem[0],cause,fl,fg:fgs.length,won,first:st.first,push,next:won?by:push&&pass?by:o,runout:won&&rem.length===0&&!oo.length},vid);
   };
   // Flag = capture now, diagram later. Saved at once (not with the visit) with the context the form already knows; status 'pending' until converted to a shot in the library.
   const pickPh=async(e:any)=>{const f=e.target.files?.[0];e.target.value='';if(f)setFph(await shrink(f))};
-  const addFlag=async()=>{const id=await save('flag',{t:Date.now(),s:sid,rack:st.rack,visit:vid,by:by.split('~')[0],venueId:session.d.venueId||'',venue:session.d.venue||'',table:st.table,open,note:fn.trim(),photo:fph||undefined,status:'pending'});setFgs([...fgs,id]);setFm(false);setFn('');setFph('')};
+  const addFlag=async()=>{const id=await save('flag',{t:Date.now(),s:sid,rack:st.rack,visit:vid,by:(duo?sp:by).split('~')[0],venueId:session.d.venueId||'',venue:session.d.venue||'',table:st.table,open,note:fn.trim(),photo:fph||undefined,status:'pending'});setFgs([...fgs,id]);setFm(false);setFn('');setFph('')};
   const list=outsFor(open);
-  return <div className="card"><div className="hdr"><b>{name(by)}{st.first?' · first shot':' at the table'}</b></div>
+  return <div className="card"><div className="hdr"><b>{name(by)}{st.first?' · first shot':' at the table'}</b>{duo&&<button className="link" onClick={()=>setSw(!sw)}>{pn(sp)} starts · swap</button>}</div>
     <div className="strip">{[1,2,3,4,5,6,7,8,9].map(i=>{const on=st.table.includes(i);return <button key={i} disabled={!on||(push&&i===9)} className={'b'+(!on?' gone':P.includes(i)?' pot':'')+((res==='Missed'||res==='Foul')&&!won&&i===rem[0]?' now':'')+(fl.includes(i)?' fl':'')} style={{['--c' as any]:BC[i]}} onClick={()=>tap(i)}>{i}</button>})}</div>
     <div className="n">{won?`9 down · rack won${rem.length?` (${rem.join(', ')} still up)`:' · run out'}`:P.length?`Potted ${srt(P).join(', ')}${oo.length?` · out of order: ${oo.join(', ')}`:''}`:'Tap the last ball you potted. Tap a potted ball to take it back.'}</div>
     <div className="lbl">Opening shot</div>

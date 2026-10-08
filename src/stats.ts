@@ -14,8 +14,9 @@ export const isMe=(by:string,pid:string)=>(by||'').split('~')[0]===pid;
 export function playerStats(pid:string,groups:Rec[][]){
   const s:any={visits:0,shot:0,won:0,runouts:0,grid:{},potted:0,onTable:0,dist:[0,0,0,0],low:Array(10).fill(0),cause:{Pot:0,Position:0,Decision:0,Other:0},safe:0,held:0,pending:0,escape:0,fouls:0,fluke:0,rackWins:0,racks:0};
   for(const evs of groups){
-    const it=walk(evs),solo=evs.some(e=>(e.d.by||'').includes('~'));if(!solo)s.racks+=new Set(evs.map(e=>e.d.rack)).size;   // solo racks are always "won", so skip rack results
+    const it=walk(evs),solo=evs.some(e=>(e.d.by||'').includes('~')),duo=evs.some(e=>e.d.sp||e.d.bp);if(!solo&&!duo)s.racks+=new Set(evs.map(e=>e.d.rack)).size;   // solo racks are always "won", so skip rack results
     it.forEach((x,i)=>{const d=x.e.d;
+      if(d.sp||d.bp)return;   // Scotch Doubles visits/breaks are team-level here: not credited to one player (see shooterAt in engine.ts)
       if(x.kind==='break'){if(isMe(d.by,pid)&&d.nine&&!solo)s.rackWins++;return}
       if(!isMe(d.by,pid))return;
       s.visits++;if(d.won&&!solo)s.rackWins++;s.fluke+=d.fl?.length||0;
@@ -35,7 +36,7 @@ export function breakStats(pid:string,groups:Rec[][]){
   const mk=()=>({n:0,one:0,drops:0,scr:0}),b:any={n:0,scratch:0,golden:0,one:0,drops:0,open:{brk:{Easy:0,Hard:0,None:0},opp:{Easy:0,Hard:0,None:0}},zone:Array.from({length:7},mk),con:{}};
   for(const evs of groups){
     const it=walk(evs);
-    it.forEach((x,i)=>{const d=x.e.d;if(x.kind!=='break'||!isMe(d.by,pid)||d.skip)return;
+    it.forEach((x,i)=>{const d=x.e.d;if(x.kind!=='break'||!isMe(d.bp||d.by,pid)||d.skip)return;
       const one=d.one===0?1:0,dr=d.drops.length,sc=d.scratch?1:0;
       b.n++;b.one+=one;b.drops+=dr;b.scratch+=sc;if(d.nine)b.golden++;
       const z=b.zone[d.z];z.n++;z.one+=one;z.drops+=dr;z.scr+=sc;

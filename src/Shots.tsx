@@ -29,6 +29,7 @@ export function Tip({tip,set,size}:any){
     <circle cx="100" cy="100" r="92" fill="#f5f2e8" stroke="#bbb" strokeWidth="2"/><line x1="100" y1="8" x2="100" y2="192" stroke="#ccc"/><line x1="8" y1="100" x2="192" y2="100" stroke="#ccc"/><circle cx={tip[0]} cy={tip[1]} r="9" fill="#c4513d"/></svg>;
 }
 export const dm=(v:number)=>(v/12.5).toFixed(1);
+const rail=(x:number,y:number,dx:number,dy:number)=>Math.min(dx>0?(100-x)/dx:dx<0?-x/dx:1e9,dy>0?(50-y)/dy:dy<0?-y/dy:1e9);   // distance from (x,y) along a unit vector to the cushion
 const dia=(x:number,y:number)=><polygon key={x+'_'+y} points={`${x},${y-1} ${x+1},${y} ${x},${y+1} ${x-1},${y}`} fill="#e8d9a8"/>;
 export function Table({d,sel,handlers,small}:any){
   const m=measure(d),cue=d.balls.find((b:any)=>b.n===0),r=small?2.4:BR;
@@ -40,8 +41,9 @@ export function Table({d,sel,handlers,small}:any){
     {POCK.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r={i===d.pocket?3.4:2.6} fill={i===d.pocket?'#e8a33d':'#06191a'}/>)}
     {d.leave&&<><circle cx={d.leave.x} cy={d.leave.y} r={d.leave.tol} fill="rgba(232,163,61,.2)" stroke="#e8a33d" strokeWidth=".5" strokeDasharray="1.5 1"/><circle cx={d.leave.x} cy={d.leave.y} r="1" fill="#e8a33d"/></>}
     {m&&cue&&<line x1={cue.x} y1={cue.y} x2={m.g.x} y2={m.g.y} stroke="#fff" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
+    {m&&!small&&m.obj>1e-3&&(()=>{const o=m.route[0],ux=(o.x-m.route[1].x)/m.obj,uy=(o.y-m.route[1].y)/m.obj,s=rail(o.x,o.y,ux,uy);return <line x1={o.x} y1={o.y} x2={o.x+ux*s} y2={o.y+uy*s} stroke="#9fd0e6" strokeOpacity=".3" strokeWidth=".4" strokeDasharray="1 1.5"/>})()}
     {m&&<line x1={m.route[0].x} y1={m.route[0].y} x2={m.route[1].x} y2={m.route[1].y} stroke="#9fd0e6" strokeWidth=".5" strokeDasharray="1.5 1.2"/>}
-    {m&&m.tan&&!small&&(()=>{const t=m.tan,s=Math.min(t.x>0?(100-m.g.x)/t.x:t.x<0?-m.g.x/t.x:1e9,t.y>0?(50-m.g.y)/t.y:t.y<0?-m.g.y/t.y:1e9);return <line x1={m.g.x} y1={m.g.y} x2={m.g.x+t.x*s} y2={m.g.y+t.y*s} stroke="#fff" strokeOpacity=".3" strokeWidth=".4" strokeDasharray="1 1.5"/>})()}
+    {m&&m.tan&&!small&&(()=>{const t=m.tan,s=rail(m.g.x,m.g.y,t.x,t.y),b=rail(m.g.x,m.g.y,-t.x,-t.y);return <line x1={m.g.x-t.x*b} y1={m.g.y-t.y*b} x2={m.g.x+t.x*s} y2={m.g.y+t.y*s} stroke="#fff" strokeOpacity=".3" strokeWidth=".4" strokeDasharray="1 1.5"/>})()}
     {m&&(d.path.length>0||d.leave)&&<polyline points={[m.g,...d.path,...(d.leave?[d.leave]:[])].map((p:any)=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#e8a33d" strokeWidth=".6" strokeDasharray="1.5 1.2"/>}
     {m&&d.path.map((p:any,i:number)=><circle key={i} cx={p.x} cy={p.y} r="1.1" fill="#e8a33d"/>)}
     {m&&<circle cx={m.g.x} cy={m.g.y} r={r} fill="none" stroke="#fff" strokeWidth=".5" strokeDasharray="1 .8"/>}

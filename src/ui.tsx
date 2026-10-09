@@ -1,6 +1,23 @@
-import {useState,useEffect,ReactNode} from 'react';
+import {useState,useEffect,useRef,useContext,createContext,ReactNode} from 'react';
 // Shared overlay primitives. Bottom sheet + promise dialogs that replace confirm()/alert().
-export const Sheet=({children,onClose}:{children:ReactNode;onClose?:()=>void})=><div className="sheet" onClick={onClose}><div className="card" onClick={e=>e.stopPropagation()}>{children}</div></div>;
+// Back stack (Android back / iOS edge swipe). Screens open on top of a root screen call useBack(open, close); Back then closes the top one instead of leaving the app.
+// One sentinel history entry exists while the stack is non-empty. close() may return false (or a promise of false) to veto, e.g. unsaved changes.
+// Active: App wraps each kept-mounted tab in <Active.Provider>; a hidden tab's screens don't take part in the stack.
+export const Active=createContext(true);
+type E={close:()=>any};
+const stk:E[]=[];let side=false,skip=0;
+const ensure=()=>{if(stk.length&&!side){history.pushState({ct:1},'');side=true}};
+const settle=()=>{if(!stk.length&&side){side=false;skip++;history.back()}};
+if(typeof window!=='undefined')window.addEventListener('popstate',()=>{if(skip){skip--;return}side=false;const e=stk.pop();if(!e)return;ensure();Promise.resolve(e.close()).then(r=>{if(r===false){stk.push(e);ensure()}})});
+export function useBack(on:boolean,close:()=>any){
+  const c=useRef(close);c.current=close;const act=useContext(Active),live=on&&act;
+  useEffect(()=>{if(!live)return;const e:E={close:()=>c.current()};stk.push(e);ensure();return()=>{const i=stk.indexOf(e);if(i>=0)stk.splice(i,1);setTimeout(settle)}},[live]);
+}
+// A sheet without onClose swallows Back (like it ignores backdrop taps) so it can't navigate away underneath.
+export function Sheet({children,onClose}:{children:ReactNode;onClose?:()=>void}){
+  useBack(true,()=>onClose?onClose():false);
+  return <div className="sheet" onClick={onClose}><div className="card" onClick={e=>e.stopPropagation()}>{children}</div></div>;
+}
 type Q={msg:string;ok:string;danger:boolean;info?:boolean;res:(v:boolean)=>void};
 let push:((q:Q)=>void)|null=null;
 // await ask('Delete this shot?','Delete shot') → true if confirmed. Falls back to confirm() if <Dialogs/> isn't mounted.

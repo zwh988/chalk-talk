@@ -2,11 +2,13 @@ import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import {Table,Tip,POW,pw,title,measure,tipLabel,dm} from './Shots';
+import {ask,useBack} from './ui';
 import {blocks,pickNext,tally,shotStats,mastery,level} from './practice';
 // practice {deck,deckName,by,venueId,venue,per,start,end?} · attempt {t,s(practice id),shot(id),by,n(1..per),ok}. Attempts are append-only; undo soft-deletes the last one.
 function Run({sid,pd,pool,all,pname,onExit}:any){
   const hist=useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del&&r.d.by===pd.by).toArray(),[pd.by]);
-  const [fin,setFin]=useState(false),lock=useRef(-1),pend=useRef<any>({k:-1,id:''});
+  const [fin,setFin]=useState(false),lock=useRef(-1),pend=useRef<any>({k:-1,id:''}),leaveRef=useRef<()=>any>();
+  useBack(true,()=>leaveRef.current?.());
   if(!hist)return null;
   const at=hist.filter((a:any)=>a.d.s===sid).sort((a:any,b:any)=>a.d.t-b.d.t),stats=shotStats(hist,pd.by);
   const per=pd.per,last=at[at.length-1]?.d.shot;let run=0;for(let i=at.length-1;i>=0&&at[i].d.shot===last;i--)run++;
@@ -17,6 +19,8 @@ function Run({sid,pd,pool,all,pname,onExit}:any){
   const go=async(ok:boolean)=>{if(lock.current===at.length)return;lock.current=at.length;await save('attempt',{t:Date.now(),s:sid,shot:cur,by:pd.by,n,ok})};
   const undo=()=>{lock.current=-1;const a=at[at.length-1];a&&drop(a.id)};
   const end=async()=>{if(at.length){await save('practice',{...pd,end:Date.now()},sid);setFin(true)}else{await drop(sid);onExit()}};
+  // Back: on the summary just leave; mid-run end the session (attempts are kept) after a confirm; an empty run is dropped by end().
+  leaveRef.current=async()=>{if(fin){onExit();return}if(at.length&&!await ask('End this practice session? Your attempts so far are kept.','End practice',false))return false;await end()};
   if(fin){const ids=[...new Set(at.map((a:any)=>a.d.shot))] as string[];return <><h1>Session done</h1>
     <div className="card"><div className="n">{pname(pd.by)} · {pd.venue||'No venue'} · {pd.deckName}</div><div style={{fontSize:30,fontWeight:800}}>{t.made}/{t.n} <span className="n">{Math.round(t.rate*100)}%</span></div></div>
     {ids.map(id=>{const x=tally(at.filter((a:any)=>a.d.shot===id)),sh=all.find((q:any)=>q.id===id);return <div key={id} className="srow"><span>{sh?title(sh.d,all,id):'Deleted shot'}</span><span><b>{x.made}/{x.n}</b></span></div>})}
@@ -42,6 +46,7 @@ export default function Practice({deck,pool,all,onExit}:any){
   const pl=useLiveQuery(()=>ofType('player'),[])||[],ps=pl.filter(p=>!p.d.archived),vs=useLiveQuery(()=>ofType('venue'),[])||[];
   const [p,setP]=useState(''),[v,setV]=useState(''),[per,setPer]=useState(3),[run,setRun]=useState<any>(null);
   const pname=(id:string)=>pl.find(x=>x.id===id)?.d.name??'—',pid=p||ps[0]?.id||'';
+  useBack(!run,onExit);
   if(run)return <Run sid={run.sid} pd={run.pd} pool={pool} all={all} pname={pname} onExit={onExit}/>;
   return <><button className="back" onClick={onExit}>‹ {deck.d.name}</button><h1>Practice</h1>
     {!ps.length?<p className="n">Add a player first (More → Players).</p>:<div className="card"><div className="n">{pool.length} shot{pool.length===1?'':'s'} in this deck</div>

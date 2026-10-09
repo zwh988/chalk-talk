@@ -4,7 +4,7 @@ import {db,save,drop,ofType} from './db';
 import {shotStats,tally,ago,mastery,level,PC} from './practice';
 import {ShotCard,title} from './Shots';
 import Practice from './Practice';
-import {ask} from './ui';
+import {ask,useBack} from './ui';
 const lc=(s:any)=>(s||'').toLowerCase();
 // A deck's shots are resolved at read time: smart = tag/player rule over the whole library, custom = explicit shot ids. Nothing is copied or stored.
 export const deckShots=(k:any,ss:any[])=>(k.kind==='custom'?ss.filter(s=>(k.shotIds||[]).includes(s.id)):ss.filter(s=>(!k.rule?.tag||lc(s.d.tag)===lc(k.rule.tag))&&(!k.rule?.by||s.d.by===k.rule.by))).sort((a,b)=>lc(a.d.tag).localeCompare(lc(b.d.tag))||a.d.no-b.d.no);
@@ -14,6 +14,7 @@ const Hist=({xs,at,nm,del,deck}:any)=><>{xs.map((x:any)=>{const t=tally(at.filte
 const blank=()=>({name:'',kind:'smart',rule:{tag:'',by:''},shotIds:[] as string[],c:Date.now()});
 function DeckEditor({init,ss,ps,onDone}:any){
   const [d,setD]=useState<any>(init.d),[tf,setTf]=useState('');
+  useBack(true,onDone);
   const tags=[...new Set(ss.map((s:any)=>s.d.tag).filter(Boolean))].sort() as string[],rule=d.rule||{},ids:string[]=d.shotIds||[],sm=d.kind!=='custom';
   const ok=d.name.trim()&&(sm||ids.length),n=deckShots(d,ss).length;
   const tog=(id:string)=>setD({...d,shotIds:ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]});
@@ -35,6 +36,7 @@ function DeckEditor({init,ss,ps,onDone}:any){
 export default function Decks({seg}:any){
   const ks=(useLiveQuery(()=>ofType('deck'),[])||[]).sort((a,b)=>(b.d.c??b.u)-(a.d.c??a.u)),ss=useLiveQuery(()=>ofType('shot'),[])||[],all=useLiveQuery(()=>ofType('player'),[])||[],ps=all.filter(p=>!p.d.archived);
   const [sel,setSel]=useState<string|null>(null),[ed,setEd]=useState<any>(null),[pr,setPr]=useState<any>(null),[pid,setPid]=useState(''),at=useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del).toArray(),[])||[],pss=useLiveQuery(()=>ofType('practice'),[])||[];
+  useBack(!!sel,()=>setSel(null));
   const nm=(id:string)=>all.find(p=>p.id===id)?.d.name??'—',k=ks.find(x=>x.id===sel),delS=(xs:string[])=>Promise.all([...at.filter(a=>xs.includes(a.d.s)).map(a=>drop(a.id)),...xs.map(drop)]);
   if(ed)return <DeckEditor key={ed.id||'new'} init={ed} ss={ss} ps={ps} onDone={()=>setEd(null)}/>;
   if(pr)return <Practice deck={pr} pool={deckShots(pr.d,ss)} all={ss} onExit={()=>setPr(null)}/>;

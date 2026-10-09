@@ -2,7 +2,7 @@ import {useState,useRef} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {save,drop,ofType,uid} from './db';
 import Photo from './Photo';
-import {ask} from './ui';
+import {ask,useBack} from './ui';
 const BC=['#f5f2e8','#c9a200','#1f4fa3','#c4513d','#5b3a8c','#e07b1f','#1f7a4a','#7a2330','#222','#d9b200'];
 const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
@@ -62,7 +62,10 @@ export function Power({v,set,min=0}:any){
 }
 function Editor({init,id,players,shots,onDone,flag}:any){
   const [d,setD]=useState<any>(init),[mode,setMode]=useState('balls'),[sel,setSel]=useState<number|null>(null);
-  const drag=useRef<any>(null);
+  const drag=useRef<any>(null),[was]=useState(()=>JSON.stringify(init));
+  // Leaving (‹ button or Back) asks first only when the diagram/fields changed; returns false to veto the Back press.
+  const leave=async()=>{if(JSON.stringify(d)!==was&&!await ask('Discard your unsaved changes to this shot?','Discard'))return false;onDone()};
+  useBack(true,leave);
   const pt=(e:any)=>{const r=e.currentTarget.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*110-5,y:(e.clientY-r.top)/r.height*60-5}};
   const hit=(p:any)=>d.balls.map((b:any)=>({b,k:Math.hypot(b.x-p.x,b.y-p.y)})).filter((h:any)=>h.k<4).sort((a:any,b:any)=>a.k-b.k)[0]?.b;
   const cl=(v:number,m:number)=>Math.max(BR,Math.min(m-BR,v));
@@ -88,7 +91,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
   const m=measure(d);
   const hint:any={balls:'Pick a ball below, tap the table to place it, drag to move.',target:'Tap the object ball, then tap the pocket it should go in.',path:'Tap where the cue ball travels after contact, in order. Rail hits snap to the cushion. Faint line = natural stun path. Drag any point to adjust.',leave:'Tap where the cue ball should end up.'};
   return <>
-    <div className="hdr"><button className="back" onClick={onDone}>‹ Catalogue</button><b>{title(d,shots,id)}</b></div>
+    <div className="hdr"><button className="back" onClick={leave}>‹ Catalogue</button><b>{title(d,shots,id)}</b></div>
     {flag&&(flag.d.photo||flag.d.note)&&<div className="card">{flag.d.photo&&<Photo src={flag.d.photo} style={{width:'100%',height:'auto',maxHeight:'70vh',objectFit:'contain',borderRadius:8}}/>}{flag.d.note&&<div className="n" style={{marginTop:6}}>Flag note: {flag.d.note}</div>}</div>}
     <div className="card"><Table d={d} sel={sel} handlers={{onPointerDown:down,onPointerMove:mv,onPointerUp:()=>{drag.current=null}}}/>
       <div className="row" style={{marginTop:8}}>{['balls','target','leave','path'].map(k=><button key={k} className={'chip'+(mode===k?' on':'')} onClick={()=>setMode(k)}>{k[0].toUpperCase()+k.slice(1)}</button>)}</div>
@@ -132,6 +135,7 @@ function Flags({fgs,ss,onBack,onCreate}:any){
 export default function Shots({seg}:any){
   const ss=useLiveQuery(()=>ofType('shot'),[])||[],ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);
   const [f,setF]=useState('all'),[tf,setTf]=useState(''),[ed,setEd]=useState<any>(null),[fv,setFv]=useState(false),fgs=useLiveQuery(()=>ofType('flag'),[])||[],pend=fgs.filter(x=>x.d.status!=='converted');
+  useBack(fv,()=>setFv(false));
   const nm=(id:string)=>ps.find(p=>p.id===id)?.d.name??'—';
   if(ed)return <Editor key={ed.id||'new'+(ed.flag?.id||'')} id={ed.id} init={ed.d} flag={ed.flag} players={ps} shots={ss} onDone={()=>setEd(null)}/>;
   const next=Math.max(0,...ss.map(s=>s.d.no))+1;

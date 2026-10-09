@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState,useRef,useLayoutEffect} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import Venues from './Venues';
@@ -10,7 +10,7 @@ import Decks from './Decks';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
-import {ask,tell,Dialogs} from './ui';
+import {ask,tell,Dialogs,Active,useBack} from './ui';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
 type Tab='play'|'review'|'shots'|'more';
@@ -20,25 +20,35 @@ const ICONS:Record<Tab,any>={
   review:<svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>,
   shots:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>,
   more:<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>};
+// Play and Shots stay mounted (hidden) so a half-filled visit, shot diagram or practice run survives a tab switch; Review and More remount. Each tab's scroll position is remembered.
 export default function App(){
-  const [tab,setTab]=useState<Tab>('play');
-  return <div className="app"><main>{tab==='play'?<Session/>:tab==='review'?<Review/>:tab==='shots'?<ShotsHome/>:<More/>}</main>
-    <nav>{(Object.keys(ICONS) as Tab[]).map(t=><button key={t} aria-label={LABEL[t]} className={tab===t?'on':''} onClick={()=>setTab(t)}>{ICONS[t]}</button>)}</nav><Dialogs/></div>;
+  const [tab,setTab]=useState<Tab>('play'),mr=useRef<HTMLElement>(null),pos=useRef<Record<string,number>>({});
+  const live=useLiveQuery(()=>ofType('session').then(r=>r.some(s=>!s.d.end)),[]),fl=useLiveQuery(()=>ofType('flag').then(r=>r.filter(x=>x.d.status!=='converted').length),[]),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[]);
+  const bd:Partial<Record<Tab,number|true>>={play:live?true:undefined,shots:fl||undefined,more:dy||undefined},note:Partial<Record<Tab,string>>={play:'session in progress',shots:'flagged',more:'unsynced'};
+  const go=(t:Tab)=>{if(t===tab)return;if(mr.current)pos.current[tab]=mr.current.scrollTop;setTab(t)};
+  useLayoutEffect(()=>{if(mr.current)mr.current.scrollTop=pos.current[tab]||0},[tab]);
+  return <div className="app"><main ref={mr}>
+    <Active.Provider value={tab==='play'}><div hidden={tab!=='play'}><Session/></div></Active.Provider>
+    <Active.Provider value={tab==='shots'}><div hidden={tab!=='shots'}><ShotsHome/></div></Active.Provider>
+    {tab==='review'&&<Review/>}{tab==='more'&&<More/>}</main>
+    <nav>{(Object.keys(ICONS) as Tab[]).map(t=>{const b=bd[t];return <button key={t} aria-label={LABEL[t]+(b?`, ${b===true?'':b+' '}${note[t]}`:'')} aria-current={tab===t?'page':undefined} className={tab===t?'on':''} onClick={()=>go(t)}>{ICONS[t]}<span className="lb">{LABEL[t]}</span>{b?<i className={'bdg'+(b===true?' dot':'')}>{b===true?'':b>99?'99+':b}</i>:null}</button>})}</nav><Dialogs/></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
 function ShotsHome(){const [v,setV]=useState('shots'),seg=<Seg items={[['shots','Shots'],['decks','Decks']]} cur={v} set={setV}/>;return v==='shots'?<Shots seg={seg}/>:<Decks seg={seg}/>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
 function More(){
-  const [v,setV]=useState('');const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
+  const [v,setV]=useState(''),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])||0;const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
+  useBack(!!v,()=>setV(''));
   if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
-  return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}</span><span>›</span></button>)}</>;
+  return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}{k==='sync'&&dy>0&&<span className="n"> · {dy} unsynced</span>}</span><span>›</span></button>)}</>;
 }
 function Players(){
   const ps=useLiveQuery(()=>ofType('player'),[])||[];
   const [name,setName]=useState('');
   const add=async()=>{if(!name.trim())return;await save('player',{name:name.trim(),color:COLORS[ps.length%COLORS.length],archived:false});setName('')};
   const [crop,setCrop]=useState<any>(null);
+  useBack(!!crop,()=>setCrop(null));
   const pickPic=(e:any,p:any)=>{const f=e.target.files?.[0];e.target.value='';if(f)setCrop({f,p})};
   return <>{crop&&<Cropper file={crop.f} onCancel={()=>setCrop(null)} onDone={async(u:string)=>{await save('player',{...crop.p.d,pic:u},crop.p.id);setCrop(null)}}/>}<h1>Players</h1>
     {!ps.length&&<p className="n">Create the two of you to get started.</p>}

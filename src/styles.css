@@ -7,7 +7,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:var(--fs-b)/1.4 var(--f
 main{flex:1;overflow:auto;width:100%;max-width:760px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 14px 14px}
 nav{display:flex;background:var(--nav);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
 nav .brand{display:none}
-nav button{flex:1;background:none;border:0;color:#b9d3d4;font:600 var(--fs-m) var(--font);padding:12px 4px;border-radius:10px}
+nav button{position:relative;flex:1;background:none;border:0;color:#b9d3d4;font:600 var(--fs-s) var(--font);padding:8px 4px 6px;border-radius:10px}
+nav .lb{display:block;margin-top:2px;line-height:1.2}
+.bdg{position:absolute;top:2px;right:calc(50% - 20px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--amber);color:#2a1a00;font:800 var(--fs-s)/18px var(--font);text-align:center;box-shadow:0 0 0 2px var(--nav)}.bdg.dot{min-width:0;width:10px;height:10px;padding:0;top:6px;right:calc(50% - 18px)}
+[hidden]{display:none!important}
 nav button.on{background:var(--cloth);color:#fff}
 h1{font-size:var(--fs-xl);margin:0 0 12px}
 h2{font-size:var(--fs-l);line-height:1.25;margin:0 0 8px}
@@ -50,7 +53,7 @@ input,select{display:block;width:100%;margin-top:4px;padding:12px;border:1px sol
 @media (orientation:landscape) and (min-width:600px),(min-width:900px){
   .app{flex-direction:row}
   nav{order:-1;flex-direction:column;width:76px;flex:none;padding:calc(12px + env(safe-area-inset-top)) 6px 12px calc(6px + env(safe-area-inset-left));gap:6px}
-  nav button{flex:none;padding:14px 4px}
+  nav button{flex:none;padding:10px 4px 8px}
 }
 .bar{height:8px;background:var(--chip);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--cloth)}
 html,body{height:100%;overflow:hidden}

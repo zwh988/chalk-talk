@@ -67,7 +67,7 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - **Not covered:** Review chip views and History cards (not sub-screens), Photo full-screen viewer (`Photo.tsx` not seen), Live's own sheets are covered only via `Sheet`.
 
 **Chunk 5 (done), `App.tsx` only:**
-- **New session defaults are derived from the latest session record** (sorted by `d.start`): format, players (`players[0]`; `solo` → "solo"; Scotch partners from `teams`), venue (`venueId`, falling back to the venue name), table. Archived players and deleted venues fall back to blank; the session name is not copied. The user's edits live in an overrides object `o` (`g(k)=k in o?o[k]:df[k]`), so defaults follow the data and nothing is stored. A "Same as last match · A vs B" line turns into a **Rematch · A vs B** button once something differs (resets `o`). After Start, `o` and the name are cleared.
+- **New session defaults are derived from the latest session record** (sorted by `d.start`): format, players (`players[0]`; `solo` → "solo"; Scotch partners from `teams`), venue (`venueId`, falling back to the venue name), table. Archived players and deleted venues fall back to blank; the session name is not copied. The user's edits live in an overrides object `o` (`g(k)=k in o?o[k]:df[k]`), so defaults follow the data and nothing is stored. (A "Rematch" button / "Same as last match" line was built, then removed at the user's request: prefill alone is enough, no extra UI.) After Start, `o` and the name are cleared.
 - **First run:** no players → card with an **Add players** button → `toPlayers()` in `App` (`go('more')` then `setMi('players')`; `More` takes an `init` prop; `go()` resets `mi`).
 - **"Me" default player: declined** (no `ct.me`, Review untouched).
 

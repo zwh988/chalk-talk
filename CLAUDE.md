@@ -67,7 +67,7 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 
 * `practice` `{deck, deckName, by, venueId, venue(name snapshot), per, start, end?}` · `attempt` `{t, s(practice id), shot(id), by, n(1..per), ok}`
 
-  Attempts are append-only; undo/delete = soft delete. Practice stats are per player + shot, derived from attempts every time; never stored.
+  Attempts are append-only; undo/delete = soft delete. Practice stats are per player + shot, derived from attempts every time; never stored. Editing a practice session (Decks → history → Edit: player, venue) rewrites `by` on the practice record and on all its attempts, since stats key off `attempt.by`.
 
 * Ordering of events: sort by `d.t` (fallback `u`). Legacy fields exist in old test data (`rating`, `cut`, `prefill`, "Pocketed anyway") — keep reading them gracefully.
 

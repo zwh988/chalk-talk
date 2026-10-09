@@ -3,6 +3,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,ofType,save,drop} from './db';
 import {derive,sName} from './engine';
 import {playerStats,breakStats} from './stats';
+import {controlStats} from './control';
 import {Ln} from './Live';
 import Avatar from './Avatar';
 import {ask} from './ui';
@@ -43,13 +44,12 @@ export default function History(){
 }
 
 // Per-match summary: derived from the same replay helpers as Review (playerStats/breakStats); nothing stored.
-// Scotch Doubles visits are team-level (not credited to a person by playerStats), so only racks and run-outs are shown there; solo has one column and no rack result.
+// Scotch Doubles visits are team-level (not credited to a person by playerStats), so only racks are shown there; solo has one column and no rack result.
 function Summary({s,evs,pl,sn,st}:any){
   const solo=!!s.d.solo,sc=s.d.fmt==='scotch',seats=solo?[0]:[0,1];
-  const X=seats.map((i:number)=>sc?null:{s:playerStats(bs(pl[i]),[evs]),b:breakStats(bs(pl[i]),[evs])});
-  const ro=(i:number)=>evs.filter((e:any)=>e.type==='visit'&&e.d.by===pl[i]&&e.d.runout).length;
-  const R:[string,(i:number,x:any)=>any][]=[...(solo?[]:[['Racks won',(i:number)=>st.scores[i]]]),['Run-outs',(i:number,x:any)=>x?x.s.runouts:ro(i)],
-    ...(sc?[]:[['Won from chance',(i:number,x:any)=>`${x.s.won}/${x.s.shot}`],['1-ball on the break',(i:number,x:any)=>`${x.b.one}/${x.b.n}`],['Safeties held',(i:number,x:any)=>`${x.s.held}/${x.s.safe}`],['Fouls',(i:number,x:any)=>x.s.fouls]])] as any;
+  const X=seats.map((i:number)=>sc?null:{s:playerStats(bs(pl[i]),[evs]),b:breakStats(bs(pl[i]),[evs]),c:controlStats(bs(pl[i]),[evs]).fin.bnr});
+  const R:[string,(i:number,x:any)=>any][]=[...(solo?[]:[['Racks won',(i:number)=>st.scores[i]]]),
+    ...(sc?[]:[['Break and run',(i:number,x:any)=>`${x.c.ro.length}/${x.c.n.length}`],['Won from chance',(i:number,x:any)=>`${x.s.won}/${x.s.shot}`],['1-ball on the break',(i:number,x:any)=>`${x.b.one}/${x.b.n}`],['Safeties held',(i:number,x:any)=>`${x.s.held}/${x.s.safe}`],['Fouls',(i:number,x:any)=>x.s.fouls]])] as any;
   return <><div className="lbl" style={{marginTop:0}}>Match summary</div><div className="ms" style={{gridTemplateColumns:`minmax(0,1.5fr) repeat(${seats.length},minmax(0,1fr))`}}><span className="h"/>{seats.map((i:number)=><span key={i} className="h" style={{textAlign:'center'}}>{sn(pl[i])}</span>)}
     {R.map(([l,f]:any)=><div key={l} style={{display:'contents'}}><span className="k">{l}</span>{seats.map((i:number,j:number)=><span key={i} className="v">{f(i,X[j])}</span>)}</div>)}</div></>;
 }

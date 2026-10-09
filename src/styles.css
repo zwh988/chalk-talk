@@ -108,7 +108,7 @@ html,body{height:100%;overflow:hidden}
 .tl .t>.n:first-child{padding-right:14px}
 /* Rank letter (R2): fixed tier colours, not themeable. Soft glow grows with tier; SSS is a prismatic gradient. Provisional = faded, no glow. */
 :root{--rk-F:#6f7678;--rk-D:#a9693a;--rk-C:#8795a0;--rk-B:#b98a10;--rk-A:#4f9db8;--rk-S:#1fa564;--rk-SS:#3a6fe0;--rk-SSSa:#d63aa8;--rk-SSSb:#9a4be0;--rk-SSSc:#3a96d6}
-.rank{font-weight:900;line-height:1;letter-spacing:-1px;color:var(--rk)}
+.rank{font-weight:900;line-height:.85;letter-spacing:-1px;color:var(--rk)}
 .rank[data-r=F]{--rk:var(--rk-F)}.rank[data-r=D]{--rk:var(--rk-D)}.rank[data-r=C]{--rk:var(--rk-C)}
 .rank[data-r=B]{--rk:var(--rk-B);text-shadow:0 0 8px color-mix(in srgb,var(--rk-B) 35%,transparent)}
 .rank[data-r=A]{--rk:var(--rk-A);text-shadow:0 0 8px color-mix(in srgb,var(--rk-A) 40%,transparent)}

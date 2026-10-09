@@ -3,7 +3,7 @@ import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import {shotStats,tally,ago,mastery,level,PC} from './practice';
 import {ShotCard,title} from './Shots';
-import Practice from './Practice';
+import Practice,{Setup,unfinished} from './Practice';
 import {ask,useBack,Sheet} from './ui';
 const lc=(s:any)=>(s||'').toLowerCase();
 // A deck's shots are resolved at read time: smart = tag/player rule over the whole library, custom = explicit shot ids. Nothing is copied or stored.
@@ -47,16 +47,16 @@ function DeckEditor({init,ss,ps,onDone}:any){
 }
 export default function Decks({seg}:any){
   const ks=(useLiveQuery(()=>ofType('deck'),[])||[]).sort((a,b)=>(b.d.c??b.u)-(a.d.c??a.u)),ss=useLiveQuery(()=>ofType('shot'),[])||[],all=useLiveQuery(()=>ofType('player'),[])||[],ps=all.filter(p=>!p.d.archived);
-  const [sel,setSel]=useState<string|null>(null),[ed,setEd]=useState<any>(null),[pr,setPr]=useState<any>(null),[pid,setPid]=useState(''),[ep,setEp]=useState<any>(null),vs=useLiveQuery(()=>ofType('venue'),[])||[],at=useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del).toArray(),[])||[],pss=useLiveQuery(()=>ofType('practice'),[])||[];
+  const [sel,setSel]=useState<string|null>(null),[ed,setEd]=useState<any>(null),[su,setSu]=useState<any>(null),[run,setRun]=useState<any>(null),pu=useLiveQuery(unfinished,[]),[pid,setPid]=useState(''),[ep,setEp]=useState<any>(null),vs=useLiveQuery(()=>ofType('venue'),[])||[],at=useLiveQuery(()=>db.recs.where('type').equals('attempt').filter(r=>!r.del).toArray(),[])||[],pss=useLiveQuery(()=>ofType('practice'),[])||[];
   useBack(!!sel,()=>setSel(null));
-  const eps=ep&&<EditPractice key={ep.id} x={ep} at={at} pl={all} vs={vs} onDone={()=>setEp(null)}/>;
+  const sus=su&&<Setup key={su.id} deck={su} pool={deckShots(su.d,ss)} onStart={(r:any)=>{setSu(null);setRun(r)}} onClose={()=>setSu(null)}/>,eps=ep&&<EditPractice key={ep.id} x={ep} at={at} pl={all} vs={vs} onDone={()=>setEp(null)}/>;
   const nm=(id:string)=>all.find(p=>p.id===id)?.d.name??'—',k=ks.find(x=>x.id===sel),delS=(xs:string[])=>Promise.all([...at.filter(a=>xs.includes(a.d.s)).map(a=>drop(a.id)),...xs.map(drop)]);
   if(ed)return <DeckEditor key={ed.id||'new'} init={ed} ss={ss} ps={ps} onDone={()=>setEd(null)}/>;
-  if(pr)return <Practice deck={pr} pool={deckShots(pr.d,ss)} all={ss} onExit={()=>setPr(null)}/>;
+  if(run){const rk=ks.find(q=>q.id===run.pd.deck);return <Practice sid={run.sid} pd={run.pd} pool={rk?deckShots(rk.d,ss):[]} all={ss} onExit={()=>setRun(null)}/>}
   if(k){const sh=deckShots(k.d,ss),who=pid||ps[0]?.id||'',st=shotStats(at,who),mine=sh.filter(s=>st[s.id]),tot=mine.reduce((a,s)=>({n:a.n+st[s.id].n,m:a.m+st[s.id].made}),{n:0,m:0}),hist=pss.filter(x=>x.d.deck===k.id).sort((a,b)=>b.d.start-a.d.start);
     const need=mine.map(s=>({s,p:mastery(st[s.id])!})).filter(o=>o.p<PC.levels[1][0]).sort((a,b)=>a.p-b.p).slice(0,3),lastP=Math.max(0,...mine.map(s=>st[s.id].last)),ses=hist.filter(x=>x.d.by===who).sort((a,b)=>a.d.start-b.d.start).map(x=>({x,t:tally(at.filter(a=>a.d.s===x.id))})).filter(o=>o.t.n).slice(-8);return <><button className="back" onClick={()=>setSel(null)}>‹ Decks</button><h1>{k.d.name}</h1>
     <div className="n">{sum(k.d,nm)} · {sh.length} shot{sh.length===1?'':'s'} · created {new Date(k.d.c??k.u).toLocaleDateString()}</div>
-    <button className="go" style={{margin:'10px 0'}} disabled={!sh.length} onClick={()=>setPr(k)}>Start practice</button>
+    <button className="go" style={{margin:'10px 0'}} disabled={!sh.length} onClick={()=>setSu(k)}>Start practice</button>
     <div className="row" style={{marginBottom:10}}><button className="ghost" onClick={()=>setEd(k)}>Edit</button><button className="ghost danger" onClick={async()=>{if(await ask(`Delete deck "${k.d.name}"? The shots and practice history are kept.`,'Delete deck')){await drop(k.id);setSel(null)}}}>Delete</button></div>
     {!sh.length&&<p className="n">No shots in this deck yet.</p>}
     {ps.length>0&&<><select value={who} onChange={e=>setPid(e.target.value)} style={{marginBottom:6}}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
@@ -67,9 +67,12 @@ export default function Decks({seg}:any){
       {need.length>0&&<><div className="n" style={{marginTop:8}}>Needs attention</div>{need.map(o=><div key={o.s.id} className="srow"><span>{title(o.s.d,ss,o.s.id)}</span><span className="n">{level(o.p)} · recent {st[o.s.id].recent.made}/{st[o.s.id].recent.n}</span></div>)}</>}</div>}
     {sh.map(s=>{const x=st[s.id];return <ShotCard key={s.id} s={s} all={ss} nm={nm} sub={x?`${x.made}/${x.n} · ${Math.round(x.rate*100)}% · last ${ago(x.last)} · recent ${x.recent.made}/${x.recent.n}`:'Not practiced yet'}/>})}
     {hist.length>0&&<div className="card"><h2>Practice history</h2><Hist xs={hist} at={at} nm={nm} del={delS} edit={setEp}/>
-      {hist.some(x=>x.d.by===who)&&<button className="ghost danger" style={{marginTop:8}} onClick={async()=>{if(await ask(`Delete all of ${nm(who)}'s practice sessions for this deck?`,'Reset history'))delS(hist.filter(x=>x.d.by===who).map(x=>x.id))}}>Reset {nm(who)}'s history for this deck</button>}</div>}{eps}</>}
+      {hist.some(x=>x.d.by===who)&&<button className="ghost danger" style={{marginTop:8}} onClick={async()=>{if(await ask(`Delete all of ${nm(who)}'s practice sessions for this deck?`,'Reset history'))delS(hist.filter(x=>x.d.by===who).map(x=>x.id))}}>Reset {nm(who)}'s history for this deck</button>}</div>}{eps}{sus}</>}
   return <>{seg}<div className="hdr"><h1>Decks</h1><button className="go sm" onClick={()=>setEd({d:blank()})}>New deck</button></div>
+    {pu&&(()=>{const x=pu.x,dk=ks.find(q=>q.id===x.d.deck);return <div className="card" style={{borderColor:'var(--amber)',borderWidth:2}}><b>Practice in progress</b><div className="n">{x.d.deckName} · {nm(x.d.by)} · {pu.n} attempt{pu.n===1?'':'s'} · started {ago(x.d.start)}{!dk&&' · deck deleted'}</div>
+      <div className="row">{dk&&<button className="go sm" style={{flex:1}} onClick={()=>setRun({sid:x.id,pd:x.d})}>Resume</button>}{pu.n?<button className="ghost" onClick={async()=>{if(await ask(`End this practice? Its ${pu.n} attempt${pu.n===1?' is':'s are'} kept.`,'End practice',false))save('practice',{...x.d,end:Date.now()},x.id)}}>End practice</button>:<button className="ghost danger" onClick={()=>drop(x.id)}>Discard</button>}</div></div>})()}
     {!ks.length&&<p className="n">No decks yet. A smart deck follows a tag or player; a custom deck is hand-picked.</p>}
-    {ks.map(x=><button key={x.id} className="card" style={{width:'100%',textAlign:'left',color:'var(--ink)',font:'inherit'}} onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {deckShots(x.d,ss).length} shots</div></button>)}
-    {pss.some(x=>!ks.some(q=>q.id===x.d.deck))&&<div className="card"><h2>History from deleted decks</h2><Hist xs={pss.filter(x=>!ks.some(q=>q.id===x.d.deck)).sort((a,b)=>b.d.start-a.d.start)} at={at} nm={nm} del={delS} edit={setEp} deck/></div>}{eps}</>;
+    {ks.map(x=>{const lp=Math.max(0,...pss.filter(q=>q.d.deck===x.id).map(q=>q.d.start)),n=deckShots(x.d,ss).length;return <div key={x.id} className="card"><button className="hist" onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {n} shot{n===1?'':'s'}</div></button>
+      <div className="row" style={{justifyContent:'space-between',flexWrap:'nowrap',marginTop:4}}><span className="n" style={{margin:0}}>{lp?`Last practiced ${ago(lp)}`:'Not practiced yet'}</span><button className="go sm" disabled={!n} onClick={()=>setSu(x)}>Start practice</button></div></div>})}
+    {pss.some(x=>!ks.some(q=>q.id===x.d.deck))&&<div className="card"><h2>History from deleted decks</h2><Hist xs={pss.filter(x=>!ks.some(q=>q.id===x.d.deck)).sort((a,b)=>b.d.start-a.d.start)} at={at} nm={nm} del={delS} edit={setEp} deck/></div>}{eps}{sus}</>;
 }

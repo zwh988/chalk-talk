@@ -7,6 +7,7 @@ import Cropper from './Cropper';
 import Stats from './Review';
 import Shots from './Shots';
 import Decks from './Decks';
+import {unfinished} from './Practice';
 import Live from './Live';
 import Settings from './Settings';
 import History from './History';
@@ -14,7 +15,7 @@ import {ask,tell,Dialogs,Active,useBack} from './ui';
 import {getCfg,setCfg,sync} from './sync';
 const COLORS=['#14575a','#e8a33d','#c4513d','#5b3a8c','#1f4fa3','#2f8f5b'];
 type Tab='play'|'review'|'shots'|'more';
-const LABEL:Record<Tab,string>={play:'Play',review:'Review',shots:'Shots',more:'More'};
+const LABEL:Record<Tab,string>={play:'Play',review:'Review',shots:'Train',more:'More'};
 const ICONS:Record<Tab,any>={
   play:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/></svg>,
   review:<svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>,
@@ -23,19 +24,19 @@ const ICONS:Record<Tab,any>={
 // Play and Shots stay mounted (hidden) so a half-filled visit, shot diagram or practice run survives a tab switch; Review and More remount. Each tab's scroll position is remembered.
 export default function App(){
   const [tab,setTab]=useState<Tab>('play'),[mi,setMi]=useState(''),mr=useRef<HTMLElement>(null),pos=useRef<Record<string,number>>({});
-  const live=useLiveQuery(()=>ofType('session').then(r=>r.some(s=>!s.d.end)),[]),fl=useLiveQuery(()=>ofType('flag').then(r=>r.filter(x=>x.d.status!=='converted').length),[]),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[]);
-  const bd:Partial<Record<Tab,number|true>>={play:live?true:undefined,shots:fl||undefined,more:dy||undefined},note:Partial<Record<Tab,string>>={play:'session in progress',shots:'flagged',more:'unsynced'};
+  const live=useLiveQuery(()=>ofType('session').then(r=>r.some(s=>!s.d.end)),[]),fl=useLiveQuery(()=>ofType('flag').then(r=>r.filter(x=>x.d.status!=='converted').length),[]),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[]),pu=useLiveQuery(unfinished,[]);
+  const bd:Partial<Record<Tab,number|true>>={play:live?true:undefined,shots:pu?true:fl||undefined,more:dy||undefined},note:Partial<Record<Tab,string>>={play:'session in progress',shots:pu?'practice in progress':'flagged',more:'unsynced'};
   const go=(t:Tab)=>{if(t===tab)return;if(mr.current)pos.current[tab]=mr.current.scrollTop;setMi('');setTab(t)};
   const toPlayers=()=>{go('more');setMi('players')};
   useLayoutEffect(()=>{if(mr.current)mr.current.scrollTop=pos.current[tab]||0},[tab]);
   return <div className="app"><main ref={mr}>
     <Active.Provider value={tab==='play'}><div hidden={tab!=='play'}><Session toPlayers={toPlayers}/></div></Active.Provider>
-    <Active.Provider value={tab==='shots'}><div hidden={tab!=='shots'}><ShotsHome/></div></Active.Provider>
+    <Active.Provider value={tab==='shots'}><div hidden={tab!=='shots'}><ShotsHome fl={fl||0}/></div></Active.Provider>
     {tab==='review'&&<Review/>}{tab==='more'&&<More init={mi}/>}</main>
     <nav>{(Object.keys(ICONS) as Tab[]).map(t=>{const b=bd[t];return <button key={t} aria-label={LABEL[t]+(b?`, ${b===true?'':b+' '}${note[t]}`:'')} aria-current={tab===t?'page':undefined} className={tab===t?'on':''} onClick={()=>go(t)}>{ICONS[t]}<span className="lb">{LABEL[t]}</span>{b?<i className={'bdg'+(b===true?' dot':'')}>{b===true?'':b>99?'99+':b}</i>:null}</button>})}</nav><Dialogs/></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
-function ShotsHome(){const [v,setV]=useState('shots'),seg=<Seg items={[['shots','Shots'],['decks','Decks']]} cur={v} set={setV}/>;return v==='shots'?<Shots seg={seg}/>:<Decks seg={seg}/>}
+function ShotsHome({fl}:{fl:number}){const [v,setV]=useState('decks'),seg=<Seg items={[['decks','Decks'],['shots','Library'],['flags','Flagged'+(fl?` (${fl})`:'')]]} cur={v} set={setV}/>;return v==='decks'?<Decks seg={seg}/>:<Shots seg={seg} flags={v==='flags'}/>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
 function More({init}:{init?:string}){

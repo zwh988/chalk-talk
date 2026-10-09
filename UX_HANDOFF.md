@@ -88,6 +88,13 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - 7b: rank letter provisional when `confidence < CONF[1][0]` (outlined, muted, "Provisional"); "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
 - Verified: syntax-level `tsc` + a Playwright mock at 390px of the new pieces. Not run on a phone; typecheck/build unverified.
 
+**Chunk 8 (done), `History.tsx` `Live.tsx` `styles.css`:**
+- History cards: title (name or date) + chevron (rotates, `aria-expanded`), meta line, one `.sr` scoreboard row per player (avatar, name, score; winner `.w` bold + "Won", loser `.l` muted; no winner for solo/ties/in-progress). Month headers `.mh` with counts. Player/venue dropdown filters (`.filt`, each shown only with >1 option).
+- Expanded: `Summary` (grid `.ms`) from `playerStats`/`breakStats`: Racks won, Run-outs, Won from chance, 1-ball on the break, Safeties held, Fouls. Scotch: racks + run-outs only (team visits aren't credited by `playerStats`); solo: one column, no racks row. Not faded for n<5 (shown as w/n). Then Edit details, racks (header `.rh.hx` with a full-size `ghost danger` Delete rack), Delete session.
+- `Live.tsx`: `line()` is now `lineP()` (parts + index of the result + ball missed) joined; text output unchanged ("Last logged" uses it). New exported `Ln` component renders the scannable line (bold result, `.bg` ball glyph); used by the Live rack log and History. Tap-to-edit is still chunk 9.
+- Not done: nothing from the chunk 8 list was skipped; search is dropdown filters only (player/venue), no text search.
+- Verified: syntax-level `tsc` on `History.tsx`/`Live.tsx` and a Playwright mock at 390px (cards, summary, rack header, ball glyph). Typecheck/build unverified; not tried on a phone. `engine.ts`, `stats.ts` unchanged.
+
 **Gotchas to remember**
 - Call `useBack` before any early `return` in a component (hooks order). Hidden-mounted tabs keep their live queries running.
 - In `Live.tsx`, `BreakForm`/`VisitForm` have local state named `ask`/`setAsk`; import only `Sheet` there, not `ask` (name clash).
@@ -142,7 +149,7 @@ Do chunks in order unless the user reorders. Each lists files to attach, the wor
 - Rank letter (46px, weight 900) is currently the loudest thing even with 1 session / 50% confidence. Make it visibly **provisional below ~75% confidence** (muted/outlined + "Provisional" tag), keep restrained.
 - Optional lead line: "Work on: <weakest attribute with enough n>" derived from `attrs()`; no new stored data.
 
-### Chunk 8 — History polish and match summary
+### Chunk 8 — History polish and match summary (DONE, see section 3)
 **Attach:** `History.tsx`, `stats.ts`, `engine.ts`, `Live.tsx` (for `line`), `styles.css`.
 **Work:** chevron/expand affordance on session cards; group by month; emphasise the winner of each match; larger **Delete rack** target (currently an 11px underlined link); per-match **summary strip** when expanded (run-outs, breaks, safeties held, etc.) reusing `playerStats`/`walk`/`derive` rather than new logic. Consider search/filter by player or venue if cheap.
 
@@ -203,7 +210,7 @@ Proposed UI-string-only changes (never rename data types like `session`):
 ## 7. Reference: audit findings behind the plan (condensed)
 - **Strengths:** domain-native input widgets with last-break prefill; progressive disclosure in the visit form; statistical honesty; coherent cloth/chalk/amber identity; safe-area/landscape care; trustworthy event-log undo.
 - **Weaknesses addressed so far:** single dashed button style for everything; unguarded End session next to Undo; semantic colours tied to brand tokens; four overlay patterns + native dialogs; unlabelled copy pointing to nonexistent tabs; clipped contact diagram; invalid button font shorthand; primary CTAs below the fold, state lost on tab switch / no back stack, session start re-asking everything, Practice buried and not resumable (chunks 3–6).
-- **Weaknesses still open:** History is a raw log with tiny Delete rack link (8); no way to correct earlier visits (9); accessibility/iOS zoom/PWA update risk (10); terminology collisions; Shot library/More polish (11).
+- **Weaknesses still open:** no way to correct earlier visits (9); accessibility/iOS zoom/PWA update risk (10); terminology collisions; Shot library/More polish (11).
 - **Developer-built vs product-built:** domain widgets feel product-built; the chrome (buttons, dialogs, empty states, text logs) felt developer-built — chunks 1–2 addressed buttons and dialogs; empty/loading/error states remain.
 
 ## 8. Per-chunk delivery checklist for the assistant

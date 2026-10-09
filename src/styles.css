@@ -106,5 +106,13 @@ html,body{height:100%;overflow:hidden}
 .rw .rv{display:inline-flex;align-items:center;gap:6px}.rw.t,.stk i.t,.lg .t,.tl .t{cursor:pointer}.lg .t{padding:6px 0}.tl .t{position:relative}.tl .chev{position:absolute;right:10px;top:8px}
 .tr>div{padding:8px 0;border-top:1px solid var(--line);font-size:var(--fs-m)}.tr>div:first-child{border-top:0}.tr .n{margin:0 0 2px}
 .tl .t>.n:first-child{padding-right:14px}
-/* Rank badge tier colours: fixed tokens, not themeable (R2). SS/SSS use gradient stops. */
-:root{--rk-F:#5d7173;--rk-D:#94562c;--rk-C:#9db3ba;--rk-B:#2f6fa0;--rk-A:#3fc08f;--rk-S:#e8b536;--rk-SSa:#f6cf4a;--rk-SS:#f28a2c;--rk-SSSa:#f2c23a;--rk-SSSb:#b8329a;--rk-SSSc:#2bb7d6}
+/* Rank letter (R2): fixed tier colours, not themeable. Soft glow grows with tier; SSS is a prismatic gradient. Provisional = faded, no glow. */
+:root{--rk-F:#6f7678;--rk-D:#a9693a;--rk-C:#8795a0;--rk-B:#b98a10;--rk-A:#4f9db8;--rk-S:#1fa564;--rk-SS:#3a6fe0;--rk-SSSa:#d63aa8;--rk-SSSb:#9a4be0;--rk-SSSc:#3a96d6}
+.rank{font-weight:900;line-height:1;letter-spacing:-1px;color:var(--rk)}
+.rank[data-r=F]{--rk:var(--rk-F)}.rank[data-r=D]{--rk:var(--rk-D)}.rank[data-r=C]{--rk:var(--rk-C)}
+.rank[data-r=B]{--rk:var(--rk-B);text-shadow:0 0 8px color-mix(in srgb,var(--rk-B) 35%,transparent)}
+.rank[data-r=A]{--rk:var(--rk-A);text-shadow:0 0 8px color-mix(in srgb,var(--rk-A) 40%,transparent)}
+.rank[data-r=S]{--rk:var(--rk-S);text-shadow:0 0 9px color-mix(in srgb,var(--rk-S) 45%,transparent)}
+.rank[data-r=SS]{--rk:var(--rk-SS);text-shadow:0 0 10px color-mix(in srgb,var(--rk-SS) 55%,transparent)}
+.rank[data-r=SSS]{background:linear-gradient(135deg,var(--rk-SSSa) 15%,var(--rk-SSSb) 55%,var(--rk-SSSc) 95%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 7px color-mix(in srgb,var(--rk-SSSb) 50%,transparent))}
+.rank.pv{opacity:.35;text-shadow:none;filter:none}

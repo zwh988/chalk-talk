@@ -7,7 +7,7 @@ import {EARLY} from './controlConfig';
 import type {Rec} from './db';
 import {Ln} from './Live';
 import {Sheet} from './ui';
-import {attrs,rating,rankOf,progress,confidence,confLabel,ATTRS,PROV,CONF} from './rating';
+import {attrs,rating,rankOf,progress,confidence,ATTRS,PROV,CONF} from './rating';
 import Avatar from './Avatar';
 import {periods,ppDelta,N as PN} from './delta';
 const pc=(w:number,n:number)=>n?Math.round(w/n*100):0;
@@ -25,17 +25,9 @@ const TRow=({l,g}:any)=><div className={'srow'+(g.n<5?' dim':'')}><span>{l}</spa
 const CH=({t,sub}:any)=><div className="ch"><h2>{t}</h2>{sub&&<span className="n">{sub}</span>}</div>;
 const Z=['L3','L2','L1','C','R1','R2','R3'];
 // Initiative blocks (S2). Hidden when the filter leaves no matches (opponent-based, see STATS_CONTROL_SPEC.md).
-// Rank badge (R2): inline SVG shield, tier colours are fixed tokens (--rk-*). Provisional = washed-out fill + dashed border in the tier colour, never outlined text.
-const RKH=(r:string)=>r==='SS'?'var(--rk-SS)':r==='SSS'?'var(--rk-SSSb)':'var(--rk-'+r+')',RKD=['F','D','B','SSS'];   // RKD = tiers with a white letter (the rest use dark ink)
-function Rank({r,prov,size=64}:{r:string;prov?:boolean;size?:number}){
-  const id='rk'+r+(prov?'p':''),h=RKH(r),w=RKD.includes(r),ink=w?'#fff':'#10221f',fs=r.length>2?22:r.length>1?26:34,P='M32 2 L60 16 V44 Q60 60 32 70 Q4 60 4 44 V16 Z',st=(o:number,c:string)=><stop offset={o} style={{stopColor:c}}/>;
-  const mx=(c:string,t:string)=>'color-mix(in srgb,'+c+' 86%,'+t+')';
-  return <svg role="img" aria-label={'Rank '+r+(prov?', provisional':'')} width={size} height={size*72/64} viewBox="0 0 64 72" style={!prov&&r.length>1?{filter:'drop-shadow(0 0 5px color-mix(in srgb,'+h+' 65%,transparent))'}:undefined}>
-    {!prov&&<defs><linearGradient id={id} x1={r==='SSS'?0:.2} y1="0" x2={r==='SSS'?1:.8} y2="1">{r==='SS'?<>{st(0,'var(--rk-SSa)')}{st(1,'var(--rk-SS)')}</>:r==='SSS'?<>{st(0,'var(--rk-SSSa)')}{st(.5,'var(--rk-SSSb)')}{st(1,'var(--rk-SSSc)')}</>:<>{st(0,mx(h,'#fff'))}{st(1,mx(h,'#000'))}</>}</linearGradient></defs>}
-    <path d={P} fill={prov?h:'url(#'+id+')'} fillOpacity={prov?.18:1} stroke={prov?h:'rgba(0,0,0,.3)'} strokeWidth={prov?2:1} strokeDasharray={prov?'5 4':undefined} strokeLinejoin="round"/>
-    {!prov&&<path d={P} transform="translate(32 36) scale(.88) translate(-32 -36)" fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1"/>}
-    <text x="32" y="38" dy=".35em" textAnchor="middle" fontSize={fs} fontWeight="900" fontFamily="var(--font)" fill={prov?'var(--mute)':ink} stroke={prov?'none':w?'rgba(0,0,0,.35)':'rgba(255,255,255,.35)'} strokeWidth="2.5" strokeLinejoin="round" style={{paintOrder:'stroke'}}>{r}</text>
-  </svg>}
+// Rank (R2): big block letter in the tier colour (fixed --rk-* tokens, styled in styles.css). Provisional = same letter faded, no outline.
+const RKH=(r:string)=>r==='SSS'?'var(--rk-SSSb)':'var(--rk-'+r+')';
+const Rank=({r,prov}:{r:string;prov?:boolean})=><div role="img" aria-label={'Rank '+r+(prov?', provisional':'')} className={'rank'+(prov?' pv':'')} data-r={r} style={{fontSize:r.length>2?34:r.length>1?44:56}}>{r}</div>;
 const Er=()=><span className="er">Early read</span>;
 const act=(f:()=>any)=>({role:'button',tabIndex:0,onClick:f,onKeyDown:(e:any)=>{if(e.key==='Enter')f()}});
 const Rw=({l,v,w,c,dim,sw,on}:any)=><div className={'rw'+(dim?' dim':'')+(on?' t':'')} {...(on?act(on):{})}><div className="rt"><span>{sw&&<i className="sw" style={{background:c}}/>}{l}</span><span className="rv"><b>{v}</b>{on&&<span className="chev">›</span>}</span></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
@@ -122,7 +114,7 @@ export default function Stats({kind}:{kind:string}){
         return <div key={e.id}><div className="n">{se?new Date(se.d.start).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Session'}{se?.d.solo?' · Solo':op2?' · vs '+nm(op2):''} · Rack {e.d.rack}</div><Ln e={e} name={nm}/>{x&&<span className="tg">{x}</span>}</div>})}</div>
       <button className="ghost" style={{width:'100%',marginTop:10}} onClick={()=>setTc(null)}>Close</button></Sheet>}
     {s&&<>
-      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1,minWidth:0}}><div className="n">{me?.d.name} · {rs}</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}<div className="n">Confidence: <b>{confLabel(cf)}</b> · {Math.round(cf*100)}% of needed data</div></div><div style={{textAlign:'center',flex:'none'}}><Rank r={rankOf(R)} prov={pv}/>{pv&&<div className="n" style={{margin:0,fontWeight:700}}>Provisional</div>}</div></div>
+      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14,alignItems:'center'}}><Avatar p={me} size={88}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:'var(--fs-xl)',fontWeight:800,lineHeight:1.15,overflowWrap:'anywhere'}}>{me?.d.name}</div><div className="n" style={{margin:'2px 0 4px'}}>{rs}</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}</div><div style={{textAlign:'center',flex:'none'}}><Rank r={rankOf(R)} prov={pv}/>{pv&&<div className="n" style={{margin:0,fontWeight:700}}>Provisional</div>}</div></div>
         <div className="bar" style={{margin:'10px 0'}}><i style={{width:pg.pct*100+'%',background:RKH(rankOf(R))}}/></div>
         {wk&&<div style={{marginBottom:10}}>Work on: <b>{ATTRS[wk.i]}</b> <span className="n">· {Math.round(wk.x.adj)} · n={wk.x.n}</span><div className="n" style={{margin:0}}>Lowest score among attributes with enough data.</div></div>}
         <select aria-label="Compare with" value={cmp} onChange={e=>setCmp(e.target.value)} style={{marginBottom:6}}><option value="">Compare with…</option>{ps.filter(p=>p.id!==sel).map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>

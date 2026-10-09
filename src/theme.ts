@@ -35,5 +35,5 @@ export const DEFAULTS:Record<string,string>={'--bg':'#f2f5f4','--cloth':'#14575a
 export function applyPreset(p:Preset){
   if(!Object.keys(p.light).length&&!Object.keys(p.dark).length)localStorage.removeItem('ct.theme');
   else localStorage.setItem('ct.theme',JSON.stringify({light:p.light,dark:p.dark}));
-  setMode('auto');
+  applyTheme();
 }

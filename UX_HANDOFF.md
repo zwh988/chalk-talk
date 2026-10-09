@@ -85,7 +85,7 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - `CH` card header = title + scope (`ws`: "Last N sessions"/"All …"); rating card scope `rs` = "All N sessions" (ignores the window, respects the type filter). Top lines: "Faded = fewer than 5 observations" and either the arrows explanation or "Trends unlock after 8 completed sessions (N more)" (`dn` = completed sessions, `PN` = `N` from `delta.ts`).
 - Compare select moved above the radar; `.key` legend only while comparing. Radar labels 13, `Cols` labels 12 (viewBox 300x112, max-width 480).
 - "Where visits end" → "Lowest ball left after a miss" + n. **Assumption:** `d.low` is set in `Live.tsx` (not seen); `stats.ts` counts it only for `Missed` visits with an Easy/Hard opening. Confirm the meaning against `Live.tsx` if the title looks wrong.
-- 7b: rank shown as the `Rank` SVG shield badge (R2), provisional when `confidence < CONF[1][0]` (washed-out fill, dashed tier-colour border, muted letter, "Provisional" caption; no text-stroke); "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
+- 7b: rank shown as a big block letter in tier colours (R2; `.rank`, `--rk-*`), provisional when `confidence < CONF[1][0]` (letter faded to ~35%, "Provisional" caption); the Confidence line was removed, and the card header leads with a large avatar and the name; "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
 - Verified: syntax-level `tsc` + a Playwright mock at 390px of the new pieces. Not run on a phone; typecheck/build unverified.
 
 **Chunk 8 (done), `History.tsx` `Live.tsx` `styles.css`:**
@@ -200,7 +200,7 @@ Proposed UI-string-only changes (never rename data types like `session`):
 ## 6. Do-not-change list (from the audit)
 - Tap-the-last-ball-potted strip behaviour.
 - Event-log architecture: derived-not-stored, soft-delete undo.
-- n shown on every stat; rows with n<5 faded; confidence label; deltas need ≥5 obs each side.
+- n shown on every stat; rows with n<5 faded; confidence only drives the provisional rank; deltas need ≥5 obs each side.
 - Cause required on Missed/Foul for Easy/Hard openings.
 - Dropdown filters (explicit prior decision), newest-first ordering.
 - Decided against (chunk 5): a default "me" player.

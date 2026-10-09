@@ -12,7 +12,7 @@
 - Rating confidence: unshrunk rating; confidence (data backing it) only drives the provisional rank (no label/percent shown) and per-attribute n.
 - Review: recent-change arrows (latest 4 vs previous 4 completed sessions) on rating, run-out/conversion/safeties/racks and break stats.
 - Solo practice sessions (Player 2 = "Myself"): both seats logged as normal, shown as "Name" and "Name (2)", counted in Review and rating (rack-win stats skipped); Review filter: All / Matches only / Solo only.
-- GitHub sync, PWA, theme presets + custom colours, status-bar colour follows theme.
+- GitHub sync, PWA, theme presets (5, each with light and dark versions) + custom colours, manual Light/Dark toggle in Settings, status-bar colour follows theme.
 - UX audit pass (chunks 0–2): copy/typo fixes, contact-diagram clipping fixed, semantic colour tokens + type scale + valid button fonts (buttons are now genuinely bold/larger), `ui.tsx` bottom sheets and `ask()/tell()` dialogs replacing native confirm/alert, red `.danger` on destructive buttons, End session always confirms and sits apart from Undo, Undo shows what it will remove.
 - UX audit chunk 3 (Live ergonomics): sticky Log break / Log visit bar (`.stick`), score header (two player blocks with big score, active player highlighted, rack in the middle), full-cell ball tap targets (`.bt`), 40px tag ✕, flag note no autofocus, Flag shot / Fluke chips with sublabels.
 - UX audit chunk 4 (navigation): labelled nav icons (`aria-current`), derived badges (Play dot while a session is live, Shots = pending flags, More = unsynced), Play and Shots stay mounted across tab switches (state, half-filled forms, diagram and practice run survive) with per-tab scroll memory, Android/iOS Back closes sub-screens via `useBack` (More pages, deck detail/editor, shot editor, flagged list, practice, cropper, sheets/dialogs), shot editor asks before discarding unsaved changes.
@@ -23,6 +23,7 @@
 - Practice history edit: Edit button per session in deck history (player and venue); changing the player moves all its attempts to that player.
 
 ## Just shipped, awaiting user test
+Theme presets rework: five presets (Cloth & chalk default, Royal baize, Plum & brass, Copper & mint, Graphite & lime), each with light and dark colours; Settings → Appearance Light/Dark toggle; preset swatches show the current mode. Check: toggle actually switches the base colours (needs `[data-theme]` rules in `styles.css`), button text contrast on lime/mint accents, semantic colours against the new cloths, "Cloth & chalk" swatch in dark mode still uses the light `DEFAULTS` (known). Not compiled: run typecheck/build.
 Stats control redesign S4 (Review → Players): tap any row, bar segment, legend item or rack tile in Initiative / How the initiative was lost / Finishing / Defence / Hard shots to open a sheet of the visits behind the number (date · opponent · rack · log line, newest first; small tags like Won/Lost, Ran out, Escape/Miss/Foul, Made/Missed). Zero rows are not tappable. Also the "N more errors didn't cost you the initiative" and "Golden breaks" lines.
 Stats control redesign S3 (Review → Players): Finishing (break and run from own breaks, run-outs by balls on the table 6+/3–5/1–2, golden breaks), Defence (stacked bar + four rows of safety outcomes, forced-error split, escapes made), Hard shots (made/missed, easy shot given up or not, cause split). Defence and Hard shots hide on Solo only; Finishing stays. This restores the run-out, escape and golden-break figures that S2 removed.
 Stats control redesign S2 (Review → Players): Initiative card (big %, stacked bar with counts, racks won as breaker/receiver), How the initiative was lost (callout + rows), Early-read pills, "More detail" heading; hidden when the filter is Solo only. The old Run-out donut, Miss and foul causes, Defence and discipline and Racks cards are gone until S3 brings Finishing/Defence/Hard shots. The S1 TEMP read-out is removed.
@@ -48,4 +49,4 @@ Decks, practice, stats, adaptive selection, progress view (written without being
 - Rank thresholds/anchors after real data; whether Breaks view should also be graphs; trend sparklines.
 
 ## Decided against
-Default "me" player (declined in chunk 5), Per-shot logging, combo/carom tracking, head-to-head Elo, light/dark selector (for now), fluke ball marker per shot.
+Default "me" player (declined in chunk 5), Per-shot logging, combo/carom tracking, head-to-head Elo, fluke ball marker per shot.

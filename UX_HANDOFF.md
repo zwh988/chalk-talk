@@ -105,6 +105,8 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - Solo/virtual ids and `unfinished()`: practice `by` is always a real player id; only match sessions use `<id>~2`.
 - Shared helpers currently duplicated: `Cols` (Review) vs `Bars` (Decks) bar charts, `BC` ball colours (Live vs Shots), `blank()` (Decks vs Shots). Consolidate into `ui.tsx` only when a chunk touches them.
 
+- **Stats control redesign (see `STATS_CONTROL_SPEC.md`).** S1 `control.ts` (derivation), S2 (Control + How control was lost, `controlConfig.ts`, CSS `.big .stk .lg .tl .tk .rw .er`) S3 (Finishing, Defence, Hard shots; CSS `.sw .tg`) and S4 (tap-to-trace sheets; CSS `.tr`, `.rv`, tappable `.t`) shipped. The spec's chunks are complete; follow-ups are listed in PROJECT_STATE. Opponent-based blocks are hidden for "Solo only".
+
 ## 4. Remaining plan
 
 Do chunks in order unless the user reorders. Each lists files to attach, the work, acceptance checks, risks.

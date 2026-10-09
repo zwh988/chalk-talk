@@ -85,7 +85,7 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - `CH` card header = title + scope (`ws`: "Last N sessions"/"All …"); rating card scope `rs` = "All N sessions" (ignores the window, respects the type filter). Top lines: "Faded = fewer than 5 observations" and either the arrows explanation or "Trends unlock after 8 completed sessions (N more)" (`dn` = completed sessions, `PN` = `N` from `delta.ts`).
 - Compare select moved above the radar; `.key` legend only while comparing. Radar labels 13, `Cols` labels 12 (viewBox 300x112, max-width 480).
 - "Where visits end" → "Lowest ball left after a miss" + n. **Assumption:** `d.low` is set in `Live.tsx` (not seen); `stats.ts` counts it only for `Missed` visits with an Easy/Hard opening. Confirm the meaning against `Live.tsx` if the title looks wrong.
-- 7b: rank letter provisional when `confidence < CONF[1][0]` (outlined, muted, "Provisional"); "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
+- 7b: rank shown as the `Rank` SVG shield badge (R2), provisional when `confidence < CONF[1][0]` (washed-out fill, dashed tier-colour border, muted letter, "Provisional" caption; no text-stroke); "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
 - Verified: syntax-level `tsc` + a Playwright mock at 390px of the new pieces. Not run on a phone; typecheck/build unverified.
 
 **Chunk 8 (done), `History.tsx` `Live.tsx` `styles.css`:**
@@ -105,7 +105,7 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - Solo/virtual ids and `unfinished()`: practice `by` is always a real player id; only match sessions use `<id>~2`.
 - Shared helpers currently duplicated: `Cols` (Review) vs `Bars` (Decks) bar charts, `BC` ball colours (Live vs Shots), `blank()` (Decks vs Shots). Consolidate into `ui.tsx` only when a chunk touches them.
 
-- **Stats control redesign (see `STATS_CONTROL_SPEC.md`).** S1 `control.ts` (derivation), S2 (Control + How control was lost, `controlConfig.ts`, CSS `.big .stk .lg .tl .tk .rw .er`) S3 (Finishing, Defence, Hard shots; CSS `.sw .tg`) and S4 (tap-to-trace sheets; CSS `.tr`, `.rv`, tappable `.t`) shipped. The spec's chunks are complete; follow-ups are listed in PROJECT_STATE. Opponent-based blocks are hidden for "Solo only".
+- **Stats control redesign (see `STATS_CONTROL_SPEC.md`).** S1 `control.ts` (derivation), S2 (Initiative + How the initiative was lost, `controlConfig.ts`, CSS `.big .stk .lg .tl .tk .rw .er`) S3 (Finishing, Defence, Hard shots; CSS `.sw .tg`) and S4 (tap-to-trace sheets; CSS `.tr`, `.rv`, tappable `.t`) shipped. The spec's chunks are complete; follow-ups are listed in PROJECT_STATE. Opponent-based blocks are hidden for "Solo only".
 
 ## 4. Remaining plan
 

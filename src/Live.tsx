@@ -34,25 +34,30 @@ export default function Live({session,name,pr,end}:any){
     {session.d.name&&<div className="n">{session.d.name}</div>}<div className="score">{Sc(0)}<div className="rk">Rack<b>{st.rack}</b></div>{Sc(1)}</div>
     {st.phase==='break'?<BreakForm key={'b'+k} st={st} sid={sid} last={last} name={sn} pn={name} other={other} session={session} onBy={(p:string)=>setCb([k,p])}/>:<VisitForm key={'v'+k} st={st} sid={sid} name={sn} pn={name} other={other} session={session}/>}
     <div className="card log"><h2>Racks</h2>{[...evs].reverse().map((e,i,a)=>{const r=e.d.rack,ix=evs.indexOf(e),ok=e.d.res==='Safe played'?safeOk(ix):undefined;
-      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v">{line(e,sn,name)}{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
+      return <div key={e.id}>{(i===0||a[i-1].d.rack!==r)&&<div className="rh">Rack {r}</div>}<div className="v"><Ln e={e} name={sn} pn={name}/>{e.type==='visit'&&e.d.res==='Safe played'&&<span className="n" style={{marginLeft:6}}>{ok==null?'… pending':ok?'✓ safe held':'✗ safe failed'}</span>}</div></div>})}{!evs.length&&<div className="n">Nothing logged yet.</div>}</div></>;
 }
-export function line(e:any,name:(id:string)=>string,pn?:(id:string)=>string){
+// Log line as parts: `hi` = index of the result part to emphasise (-1 none), `ball` = the ball missed (for a ball glyph).
+export function lineP(e:any,name:(id:string)=>string,pn?:(id:string)=>string){
   const d=e.d,p:string[]=[name(d.by)],sd=d.side?'R':'L';
   if(pn&&d.bp)p[0]=pn(d.bp);if(pn&&d.sp)p.push(pn(d.sp)+' starts');   // Scotch Doubles: the individual who broke / started the visit
   if(e.type==='break'){
     if(d.skip)p.push('Break not logged');
     else p.push('Break',d.ct!=null?(d.ct===8?'straight on':`${d.ct}/8 ${sd}`):`${C[d.cut]} ${sd}`,Z[d.z],POW[4+d.spd],`1-ball ${d.one==null?'n/a':ONE[d.one].toLowerCase()}`,`${d.drops.length} dropper${d.drops.length===1?'':'s'}`,...(d.scratch?['scratch']:[]),...(d.nine?['golden break']:[]));
-    return p.join(' · ');
+    return {p,hi:-1,ball:0};
   }
   const open=d.open?(d.open==='None'?'No shot':d.open):d.rating||'';
   if(open)p.push(open);
   if(d.board==='Problem')p.push('problem '+(d.prob?.join(',')||'?'));
   p.push(d.push?'Push out':d.won?(d.runout?'Won rack · run out':'Won rack · 9 off a combo'):d.res==='Missed'?`Missed the ${d.low}`:d.res);
+  const hi=p.length-1,ball=d.res==='Missed'&&!d.push&&!d.won&&d.low?d.low:0;
   if(!(d.potted.length===0&&['Safe played','Escape hit'].includes(d.res)))p.push(`${d.potted.length} ball${d.potted.length===1?'':'s'}`);
   if(d.oo?.length)p.push('out of order '+d.oo.join(','));
   if(d.cause)p.push(d.cause);if(d.fl.length)p.push(`fluke ×${d.fl.length}`);if(d.fg)p.push(`⚑${d.fg}`);
-  return p.join(' · ');
+  return {p,hi,ball};
 }
+export const line=(e:any,name:(id:string)=>string,pn?:(id:string)=>string)=>lineP(e,name,pn).p.join(' · ');
+// Scannable log line (result in bold, ball glyph for the ball missed); used by the rack log here and in History. `line()` stays the plain text.
+export function Ln({e,name,pn}:any){const {p,hi,ball}=lineP(e,name,pn);return <>{p.map((x:string,i:number)=><span key={i}>{i?' · ':''}{i===hi?<b>{ball?<>Missed the <i className="bg" style={{['--c' as any]:BC[ball]}}>{ball}</i></>:x}</b>:x}</span>)}</>}
 const KX=[0,1,2,3,4,5,6].map(i=>111.3+i*12.9);
 function Kitchen({z,set}:any){
   const pick=(e:any)=>{const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*300;set(Math.max(0,Math.min(6,Math.round((x-111.3)/12.9))))};

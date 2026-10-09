@@ -80,3 +80,13 @@ html,body{height:100%;overflow:hidden}
 .filt{display:flex;gap:8px;margin-bottom:8px}.filt select{margin:0;flex:1;min-width:0}
 .ch{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 8px;margin-bottom:8px}.ch h2{margin:0}.ch .n{margin:0}
 .key{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;margin:4px 0 0;font-size:var(--fs-s);color:var(--mute)}.key span{display:inline-flex;align-items:center;gap:6px}.key i{display:inline-block;width:20px;height:0;border-top:3px solid var(--cloth)}.key i.d{border-top:3px dashed var(--amber)}
+/* History: month headers, session cards (scoreboard rows, chevron), match summary grid, rack header with a real Delete rack button, ball glyph in log lines */
+.mh{display:flex;justify-content:space-between;align-items:baseline;margin:16px 2px 8px;font-size:var(--fs-s);font-weight:800;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.hh{display:flex;justify-content:space-between;align-items:center;gap:8px}.hh b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ip{color:var(--warn)}
+.chev{flex:none;font-size:var(--fs-xl);line-height:1;color:var(--mute);transition:transform .15s}.hist.o .chev{transform:rotate(90deg)}
+.sb{margin-top:6px}.sr{display:flex;align-items:center;gap:8px;padding:3px 0;min-width:0}.sr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sr .num{font-size:var(--fs-xl);line-height:1.1;min-width:28px;text-align:right}
+.sr.w .nm,.sr.w .num{font-weight:800}.sr.l{color:var(--mute)}.sr .wt{flex:none;font-size:var(--fs-s);font-weight:700;color:var(--cloth)}
+.ms{display:grid;align-items:stretch;margin:4px 0 10px;font-size:var(--fs-m)}.ms>*,.ms>div>*{padding:6px 0;border-top:1px solid var(--line);min-width:0}.ms .h{border-top:0;font-size:var(--fs-s);font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ms .k{color:var(--mute)}.ms .v{text-align:center;font-weight:700}
+.rh.hx{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 0 2px}
+.bg{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font:800 var(--fs-s)/1 var(--font);font-style:normal;vertical-align:middle;margin-left:2px}
+.hist+.log{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}

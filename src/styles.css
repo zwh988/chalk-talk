@@ -76,3 +76,7 @@ html,body{height:100%;overflow:hidden}
 .bt.gone{color:var(--line)}.bt.gone::before{background:transparent;border:2px dashed var(--line)}
 .bt.now::before{box-shadow:0 0 0 3px var(--panel),0 0 0 6px var(--amber)}.bt.fl::before{outline:3px solid #b57cf0;outline-offset:3px}
 
+/* Review: filter row, card header with scope label, radar legend */
+.filt{display:flex;gap:8px;margin-bottom:8px}.filt select{margin:0;flex:1;min-width:0}
+.ch{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 8px;margin-bottom:8px}.ch h2{margin:0}.ch .n{margin:0}
+.key{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;margin:4px 0 0;font-size:var(--fs-s);color:var(--mute)}.key span{display:inline-flex;align-items:center;gap:6px}.key i{display:inline-block;width:20px;height:0;border-top:3px solid var(--cloth)}.key i.d{border-top:3px dashed var(--amber)}

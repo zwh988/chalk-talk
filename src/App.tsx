@@ -22,23 +22,24 @@ const ICONS:Record<Tab,any>={
   more:<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>};
 // Play and Shots stay mounted (hidden) so a half-filled visit, shot diagram or practice run survives a tab switch; Review and More remount. Each tab's scroll position is remembered.
 export default function App(){
-  const [tab,setTab]=useState<Tab>('play'),mr=useRef<HTMLElement>(null),pos=useRef<Record<string,number>>({});
+  const [tab,setTab]=useState<Tab>('play'),[mi,setMi]=useState(''),mr=useRef<HTMLElement>(null),pos=useRef<Record<string,number>>({});
   const live=useLiveQuery(()=>ofType('session').then(r=>r.some(s=>!s.d.end)),[]),fl=useLiveQuery(()=>ofType('flag').then(r=>r.filter(x=>x.d.status!=='converted').length),[]),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[]);
   const bd:Partial<Record<Tab,number|true>>={play:live?true:undefined,shots:fl||undefined,more:dy||undefined},note:Partial<Record<Tab,string>>={play:'session in progress',shots:'flagged',more:'unsynced'};
-  const go=(t:Tab)=>{if(t===tab)return;if(mr.current)pos.current[tab]=mr.current.scrollTop;setTab(t)};
+  const go=(t:Tab)=>{if(t===tab)return;if(mr.current)pos.current[tab]=mr.current.scrollTop;setMi('');setTab(t)};
+  const toPlayers=()=>{go('more');setMi('players')};
   useLayoutEffect(()=>{if(mr.current)mr.current.scrollTop=pos.current[tab]||0},[tab]);
   return <div className="app"><main ref={mr}>
-    <Active.Provider value={tab==='play'}><div hidden={tab!=='play'}><Session/></div></Active.Provider>
+    <Active.Provider value={tab==='play'}><div hidden={tab!=='play'}><Session toPlayers={toPlayers}/></div></Active.Provider>
     <Active.Provider value={tab==='shots'}><div hidden={tab!=='shots'}><ShotsHome/></div></Active.Provider>
-    {tab==='review'&&<Review/>}{tab==='more'&&<More/>}</main>
+    {tab==='review'&&<Review/>}{tab==='more'&&<More init={mi}/>}</main>
     <nav>{(Object.keys(ICONS) as Tab[]).map(t=>{const b=bd[t];return <button key={t} aria-label={LABEL[t]+(b?`, ${b===true?'':b+' '}${note[t]}`:'')} aria-current={tab===t?'page':undefined} className={tab===t?'on':''} onClick={()=>go(t)}>{ICONS[t]}<span className="lb">{LABEL[t]}</span>{b?<i className={'bdg'+(b===true?' dot':'')}>{b===true?'':b>99?'99+':b}</i>:null}</button>})}</nav><Dialogs/></div>;
 }
 function Seg({items,cur,set}:any){return <div className="row" style={{marginBottom:12}}>{items.map(([k,l]:string[])=><button key={k} className={'chip'+(cur===k?' on':'')} onClick={()=>set(k)}>{l}</button>)}</div>}
 function ShotsHome(){const [v,setV]=useState('shots'),seg=<Seg items={[['shots','Shots'],['decks','Decks']]} cur={v} set={setV}/>;return v==='shots'?<Shots seg={seg}/>:<Decks seg={seg}/>}
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
-function More(){
-  const [v,setV]=useState(''),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])||0;const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
+function More({init}:{init?:string}){
+  const [v,setV]=useState(init||''),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])||0;const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
   useBack(!!v,()=>setV(''));
   if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
   return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}{k==='sync'&&dy>0&&<span className="n"> · {dy} unsynced</span>}</span><span>›</span></button>)}</>;
@@ -60,27 +61,34 @@ function Players(){
 }
 // Solo practice: seat 2 is a virtual player id `<id>~2`, so the engine sees two sides. Always look players up through base().
 const base=(id:string)=>id.split('~')[0];
-function Session(){
+function Session({toPlayers}:{toPlayers:()=>void}){
   const all=useLiveQuery(()=>ofType('player'),[])||[];
   const ps=all.filter(p=>!p.d.archived);
   const ss=useLiveQuery(()=>ofType('session'),[])||[];
   const vs=useLiveQuery(()=>ofType('venue'),[])||[];
   const active=ss.find(s=>!s.d.end);
-  const [a,setA]=useState('');const [b,setB]=useState('');const [venue,setV]=useState('');const [sname,setN]=useState('');const [tbl,setT]=useState('');const [fmt,setF]=useState('singles'),[a2,setA2]=useState(''),[b2,setB2]=useState(''),sc=fmt==='scotch';
+  // Start form: defaults are derived from the latest session (archived players / deleted venues fall back to blank); `o` holds only what the user changed.
+  const [o,setO]=useState<any>({}),[sname,setN]=useState('');
+  const last=[...ss].sort((x,y)=>(y.d.start||0)-(x.d.start||0))[0],okP=(id?:string)=>id&&ps.some(p=>p.id===id)?id:'',lp=last?.d.players||[],lt=last?.d.teams;
+  const df:any=last?{fmt:last.d.fmt==='scotch'?'scotch':'singles',a:okP(lp[0]),b:last.d.solo?'solo':okP(lp[1]),a2:okP(lt?.[0]?.[1]),b2:okP(lt?.[1]?.[1]),venue:vs.find(v=>v.id===last.d.venueId)?.id||vs.find(v=>v.d.name===last.d.venue)?.id||'',tbl:last.d.table??''}:{fmt:'singles',a:'',b:'',a2:'',b2:'',venue:'',tbl:''};
+  const g=(k:string)=>k in o?o[k]:df[k],set=(k:string,x:string)=>setO((p:any)=>({...p,[k]:x})),st=(k:string)=>(x:string)=>set(k,x);
+  const a=g('a'),b=g('b'),a2=g('a2'),b2=g('b2'),venue=g('venue'),tbl=g('tbl'),fmt=g('fmt'),sc=fmt==='scotch',dif=Object.keys(o).some(k=>o[k]!==df[k]),dok=!!(last&&df.a&&df.b&&(df.fmt!=='scotch'||(df.a2&&df.b2)));
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
   const nm=(id:string)=>(all.find(p=>p.id===base(id))?.d.name??'?')+(id.includes('~')?' (2)':'');
   if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===base(id))} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
   const ok=sc?[a,a2,b,b2].every(Boolean)&&new Set([a,a2,b,b2]).size===4&&b!=='solo':a&&b&&a!==b;
   const opts=ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>);
   const sel=(l:string,v:string,f:any,solo?:boolean)=><label>{l}<select value={v} onChange={e=>f(e.target.value)}><option value="">Choose…</option>{solo&&<option value="solo">Myself (solo practice)</option>}{opts}</select></label>;
+  const n2=(id:string)=>id==='solo'?'Myself':nm(id),sum=df.fmt==='scotch'?`${n2(df.a)} & ${n2(df.a2)} vs ${n2(df.b)} & ${n2(df.b2)}`:`${n2(df.a)} vs ${n2(df.b)}`;
   return <><h1>New session</h1>
-    {!ps.length?<p className="n">Add a player first (More → Players).</p>:<div className="card">
+    {!ps.length?<div className="card"><p className="n">Add at least two players to get started.</p><button className="go" onClick={toPlayers}>Add players</button></div>:<div className="card">
+      {dok&&(dif?<button className="ghost" style={{marginBottom:12}} onClick={()=>setO({})}>Rematch · {sum}</button>:<div className="n" style={{marginBottom:12}}>Same as last match · {sum}</div>)}
       <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
-      <Seg items={[['singles','Singles'],['scotch','Scotch Doubles']]} cur={fmt} set={(v:string)=>{setF(v);if(v==='scotch'&&b==='solo')setB('')}}/>
-      {sel(sc?'Our team · Player A':'Player 1',a,setA)}{sc&&sel('Our team · Player B',a2,setA2)}{sel(sc?'Opponent · Player A':'Player 2',b,setB,!sc)}{sc&&sel('Opponent · Player B',b2,setB2)}
-      <label>Venue<select value={venue} onChange={e=>setV(e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues in More → Venues.</div>}
-      <label>Table number<input value={tbl} onChange={e=>setT(e.target.value)} inputMode="numeric"/></label>
-      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:sc?[a,b]:[a,b==='solo'?a+'~2':b],solo:!sc&&b==='solo',...(sc?{fmt:'scotch',teams:[[a,a2],[b,b2]]}:{}),venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()})}>Start session</button></div>}</>;
+      <Seg items={[['singles','Singles'],['scotch','Scotch Doubles']]} cur={fmt} set={(v:string)=>{set('fmt',v);if(v==='scotch'&&b==='solo')set('b','')}}/>
+      {sel(sc?'Our team · Player A':'Player 1',a,st('a'))}{sc&&sel('Our team · Player B',a2,st('a2'))}{sel(sc?'Opponent · Player A':'Player 2',b,st('b'),!sc)}{sc&&sel('Opponent · Player B',b2,st('b2'))}
+      <label>Venue<select value={venue} onChange={e=>set('venue',e.target.value)}><option value="">No venue</option>{vs.map(v=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>{!vs.length&&<div className="n">Add venues in More → Venues.</div>}
+      <label>Table number<input value={tbl} onChange={e=>set('tbl',e.target.value)} inputMode="numeric"/></label>
+      <button className="go" disabled={!ok} onClick={()=>save('session',{name:sname.trim(),players:sc?[a,b]:[a,b==='solo'?a+'~2':b],solo:!sc&&b==='solo',...(sc?{fmt:'scotch',teams:[[a,a2],[b,b2]]}:{}),venue:vs.find(v=>v.id===venue)?.d.name??'',venueId:venue,table:tbl,start:Date.now()}).then(()=>{setO({});setN('')})}>Start session</button></div>}</>;
 }
 function Sync(){
   const [c,setC]=useState(getCfg());const [msg,setMsg]=useState('');const [busy,setBusy]=useState(false);

@@ -23,8 +23,8 @@ const CH=({t,sub}:any)=><div className="ch"><h2>{t}</h2>{sub&&<span className="n
 const Z=['L3','L2','L1','C','R1','R2','R3'];
 // Control model blocks (S2). Hidden when the filter leaves no matches (opponent-based, see STATS_CONTROL_SPEC.md).
 const Er=()=><span className="er">Early read</span>;
-const Rw=({l,v,w,c,dim}:any)=><div className={'rw'+(dim?' dim':'')}><div className="rt"><span>{l}</span><b>{v}</b></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
-const KC='color-mix(in srgb,var(--good) 45%,var(--panel))';
+const Rw=({l,v,w,c,dim,sw}:any)=><div className={'rw'+(dim?' dim':'')}><div className="rt"><span>{sw&&<i className="sw" style={{background:c}}/>}{l}</span><b>{v}</b></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
+const KC='color-mix(in srgb,var(--good) 45%,var(--panel))',HC='color-mix(in srgb,var(--warn) 55%,var(--panel))',NC='color-mix(in srgb,var(--mute) 35%,var(--panel))';   // segment colours differ in lightness, not just hue
 function ControlCards({cs,ws}:any){
   const C=cs.ctl,w=C.won.length,k=C.kept.length,g=C.gave.length,tot=w+k+g,kc=w+k,Lo=cs.lost,ke=cs.keptErr.length,R=cs.rack;
   const rows:[string,any[],string,string][]=[['Position error',Lo.pos,'var(--bad)','Position errors'],['Potting error',Lo.pot,'var(--bad)','Potting errors'],['Decision error',Lo.dec,'var(--bad)','Decision errors'],['Safety left an easy shot',Lo.safe,'var(--warn)','Safeties that left an easy shot'],['Hard shot missed, left an easy one',Lo.hard,'var(--warn)','Hard shots missed that left an easy one'],['Other miss',Lo.other,'var(--mute)','']];
@@ -45,6 +45,34 @@ function ControlCards({cs,ws}:any){
         :<div className="n">You haven't lost control on a chance yet.</div>}
       {ke>0&&<div className="n">{ke} more error{ke===1?'':'s'} didn't cost you control</div>}</div>}
   </>}
+// S3 blocks. Finishing includes solo; Defence and Hard shots are opponent-based (matches only).
+function FinishCard({cs,ws}:any){
+  const F=cs.fin,rows:[string,any][]=[['Break and run',F.bnr],['Ran out from 6+ balls',F.len[0]],['Ran out from 3–5 balls',F.len[1]],['Ran out from 1–2 balls',F.len[2]]];
+  return <div className="card"><CH t="Finishing" sub={ws}/>
+    {rows.some(([,r])=>r.n.length)||F.golden.length?<><div className="rws">{rows.map(([l,r])=>{const n=r.n.length;return <Rw key={l} l={l} v={n?r.ro.length+' of '+n:'—'} w={n?r.ro.length/n:0} c="var(--good)" dim={n<5}/>})}</div>
+      <div className="n">Break and run = your own breaks. The other rows = your chances, by balls on the table when the visit started.</div>
+      <div className="n" style={{margin:0}}>Golden breaks: {F.golden.length}</div></>
+      :<div className="n">No chances logged yet.</div>}</div>}
+function DefenceCard({cs,ws}:any){
+  const S=cs.safe,e=S.easy.length,h=S.hard.length,c=S.cont.length,fe=S.esc.length,fm=S.miss.length,ff=S.foul.length,fo=fe+fm+ff,tot=e+h+c+fo,E=cs.esc,em=E.made.length,et=em+E.fail.length;
+  const seg:[string,number,string][]=[['Left an easy shot',e,'var(--bad)'],['Left a hard shot',h,HC],['Contained',c,NC],['Forced an error',fo,'var(--good)']];
+  return <div className="card"><CH t="Defence" sub={<>{ws}{tot<EARLY.safeties&&<Er/>}</>}/>
+    {tot?<><div className="n" style={{margin:'0 0 8px'}}>What your {tot} safeties left the opponent.</div>
+      <div className="stk">{seg.map(([l,n,c])=>n>0&&<i key={l} style={{width:n/tot*100+'%',background:c}}/>)}</div>
+      <div className="rws" style={{marginTop:6}}>{seg.map(([l,n,c])=><Rw key={l} sw l={l} v={n} w={n/tot} c={c} dim={tot<5}/>)}</div>
+      {fo>0&&<div className="n">Forced errors: Escape {fe} · Miss {fm} · Foul {ff}</div>}</>
+      :<div className="n">No safeties with a result yet.</div>}
+    {S.pend.length>0&&<div className="n">{S.pend.length} more not counted yet (no next visit)</div>}
+    <div className="rws" style={{marginTop:10,borderTop:'1px solid var(--line)'}}><Rw l="Escapes made" v={et?em+' of '+et:'—'} w={et?em/et:0} c="var(--good)" dim={et<5}/></div></div>}
+function HardCard({cs,ws}:any){
+  const H=cs.hard,m=H.made.length,ms=H.miss.length,at=m+ms,ez=H.easy.length,no=H.none.length,pd=H.pend.length,K=H.cause,cz:[string,any[]][]=[['Potting',K.Pot],['Position',K.Position],['Decision',K.Decision],['Other',K.Other]];
+  return <div className="card"><CH t="Hard shots" sub={<>{ws}<span className="tg">Descriptive, no verdict</span>{at<EARLY.hard&&<Er/>}</>}/>
+    {at?<><div className="rws"><Rw l="Made" v={m+' of '+at} w={m/at} c="var(--cloth)" dim={at<5}/>
+      <Rw l="Missed, opponent got an easy shot" v={ez} w={ms?ez/ms:0} c="var(--warn)" dim={at<5}/>
+      <Rw l="Missed, no easy shot given up" v={no} w={ms?no/ms:0} c="var(--mute)" dim={at<5}/></div>
+      {pd>0&&<div className="n">{pd} more miss{pd===1?'':'es'} not sorted yet (no next visit)</div>}
+      {ms>0&&<div className="n">Misses by cause: {cz.map(([l,a])=>l+' '+a.length).join(' · ')}</div>}</>
+      :<div className="n">No hard shots logged yet.</div>}</div>}
 export default function Stats({kind}:{kind:string}){
   const ps=(useLiveQuery(()=>ofType('player'),[])||[]).filter(p=>!p.d.archived);
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
@@ -80,6 +108,8 @@ export default function Stats({kind}:{kind:string}){
         <Radar a={at.map(x=>x.adj)} b={ca?ca.map(x=>x.adj):null}/>
         {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}<span className="n"> · n={at[i].n}</span>{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{Math.round(at[i].adj)}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:at[i].adj+'%'}}/></div></div>)}<div className="n">▲▼ = change vs the 4 sessions before · – = not enough data to compare</div></div>
       {cs&&cs.m>0&&<ControlCards cs={cs} ws={ws}/>}
+      {cs&&<FinishCard cs={cs} ws={ws}/>}
+      {cs&&cs.m>0&&<><DefenceCard cs={cs} ws={ws}/><HardCard cs={cs} ws={ws}/></>}
       <div className="mh"><span>More detail</span></div>
       <div className="card"><CH t="Balls run" sub={ws}/><div className="row" style={{justifyContent:'center'}}><Donut w={s.potted} n={s.onTable} label="conversion" d={dd(sc,sp,x=>[x.potted,x.onTable])}/></div><div className="n" style={{textAlign:'center'}}>Balls potted per chance visit</div><Cols vals={s.dist} labels={['0','1–2','3–4','5+']}/></div>
       <div className="card"><CH t="Lowest ball left after a miss" sub={ws}/><div className={ms<5?'dim':''}><Cols vals={s.low.slice(1)} labels={[1,2,3,4,5,6,7,8,9]}/></div><div className="n" style={{textAlign:'center'}}>{ms} misses · by ball number</div></div></>}

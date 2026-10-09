@@ -99,3 +99,6 @@ html,body{height:100%;overflow:hidden}
 .rw{min-height:44px;display:flex;flex-direction:column;justify-content:center;padding:6px 0;border-top:1px solid var(--line)}.rws>.rw:first-child{border-top:0}
 .rw .rt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:var(--fs-m)}.rw .rb{height:6px;margin-top:4px;border-radius:3px;background:var(--chip);overflow:hidden}.rw .rb i{display:block;height:100%}
 .er{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--amber) 22%,var(--panel));color:var(--warn);font-size:var(--fs-s);font-weight:700}
+/* S3: row swatch (ties a row to its stacked-bar segment), neutral header pill */
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px}
+.tg{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--mute);font-size:var(--fs-s);font-weight:700}

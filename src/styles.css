@@ -102,3 +102,7 @@ html,body{height:100%;overflow:hidden}
 /* S3: row swatch (ties a row to its stacked-bar segment), neutral header pill */
 .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px}
 .tg{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--mute);font-size:var(--fs-s);font-weight:700}
+/* S4 tap to trace: tappable rows/segments/tiles, trace sheet list */
+.rw .rv{display:inline-flex;align-items:center;gap:6px}.rw.t,.stk i.t,.lg .t,.tl .t{cursor:pointer}.lg .t{padding:6px 0}.tl .t{position:relative}.tl .chev{position:absolute;right:10px;top:8px}
+.tr>div{padding:8px 0;border-top:1px solid var(--line);font-size:var(--fs-m)}.tr>div:first-child{border-top:0}.tr .n{margin:0 0 2px}
+.tl .t>.n:first-child{padding-right:14px}

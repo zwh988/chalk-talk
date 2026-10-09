@@ -24,7 +24,18 @@ const TRow=({l,g}:any)=><div className={'srow'+(g.n<5?' dim':'')}><span>{l}</spa
 // Card title + scope (what data the card covers).
 const CH=({t,sub}:any)=><div className="ch"><h2>{t}</h2>{sub&&<span className="n">{sub}</span>}</div>;
 const Z=['L3','L2','L1','C','R1','R2','R3'];
-// Control model blocks (S2). Hidden when the filter leaves no matches (opponent-based, see STATS_CONTROL_SPEC.md).
+// Initiative blocks (S2). Hidden when the filter leaves no matches (opponent-based, see STATS_CONTROL_SPEC.md).
+// Rank badge (R2): inline SVG shield, tier colours are fixed tokens (--rk-*). Provisional = washed-out fill + dashed border in the tier colour, never outlined text.
+const RKH=(r:string)=>r==='SS'?'var(--rk-SS)':r==='SSS'?'var(--rk-SSSb)':'var(--rk-'+r+')',RKD=['F','D','B','SSS'];   // RKD = tiers with a white letter (the rest use dark ink)
+function Rank({r,prov,size=64}:{r:string;prov?:boolean;size?:number}){
+  const id='rk'+r+(prov?'p':''),h=RKH(r),w=RKD.includes(r),ink=w?'#fff':'#10221f',fs=r.length>2?22:r.length>1?26:34,P='M32 2 L60 16 V44 Q60 60 32 70 Q4 60 4 44 V16 Z',st=(o:number,c:string)=><stop offset={o} style={{stopColor:c}}/>;
+  const mx=(c:string,t:string)=>'color-mix(in srgb,'+c+' 86%,'+t+')';
+  return <svg role="img" aria-label={'Rank '+r+(prov?', provisional':'')} width={size} height={size*72/64} viewBox="0 0 64 72" style={!prov&&r.length>1?{filter:'drop-shadow(0 0 5px color-mix(in srgb,'+h+' 65%,transparent))'}:undefined}>
+    {!prov&&<defs><linearGradient id={id} x1={r==='SSS'?0:.2} y1="0" x2={r==='SSS'?1:.8} y2="1">{r==='SS'?<>{st(0,'var(--rk-SSa)')}{st(1,'var(--rk-SS)')}</>:r==='SSS'?<>{st(0,'var(--rk-SSSa)')}{st(.5,'var(--rk-SSSb)')}{st(1,'var(--rk-SSSc)')}</>:<>{st(0,mx(h,'#fff'))}{st(1,mx(h,'#000'))}</>}</linearGradient></defs>}
+    <path d={P} fill={prov?h:'url(#'+id+')'} fillOpacity={prov?.18:1} stroke={prov?h:'rgba(0,0,0,.3)'} strokeWidth={prov?2:1} strokeDasharray={prov?'5 4':undefined} strokeLinejoin="round"/>
+    {!prov&&<path d={P} transform="translate(32 36) scale(.88) translate(-32 -36)" fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1"/>}
+    <text x="32" y="38" dy=".35em" textAnchor="middle" fontSize={fs} fontWeight="900" fontFamily="var(--font)" fill={prov?'var(--mute)':ink} stroke={prov?'none':w?'rgba(0,0,0,.35)':'rgba(255,255,255,.35)'} strokeWidth="2.5" strokeLinejoin="round" style={{paintOrder:'stroke'}}>{r}</text>
+  </svg>}
 const Er=()=><span className="er">Early read</span>;
 const act=(f:()=>any)=>({role:'button',tabIndex:0,onClick:f,onKeyDown:(e:any)=>{if(e.key==='Enter')f()}});
 const Rw=({l,v,w,c,dim,sw,on}:any)=><div className={'rw'+(dim?' dim':'')+(on?' t':'')} {...(on?act(on):{})}><div className="rt"><span>{sw&&<i className="sw" style={{background:c}}/>}{l}</span><span className="rv"><b>{v}</b>{on&&<span className="chev">›</span>}</span></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
@@ -32,23 +43,23 @@ const KC='color-mix(in srgb,var(--good) 45%,var(--panel))',HC='color-mix(in srgb
 function ControlCards({cs,ws,op}:any){
   const C=cs.ctl,w=C.won.length,k=C.kept.length,g=C.gave.length,tot=w+k+g,kc=w+k,Lo=cs.lost,ke=cs.keptErr.length,R=cs.rack;
   const rows:[string,any[],string,string][]=[['Position error',Lo.pos,'var(--bad)','Position errors'],['Potting error',Lo.pot,'var(--bad)','Potting errors'],['Decision error',Lo.dec,'var(--bad)','Decision errors'],['Safety left an easy shot',Lo.safe,'var(--warn)','Safeties that left an easy shot'],['Hard shot missed, left an easy one',Lo.hard,'var(--warn)','Hard shots missed that left an easy one'],['Other miss',Lo.other,'var(--mute)','']];
-  const cseg:[number,string,string,any[]][]=[[w,'var(--good)','Won the rack',C.won],[k,KC,'Kept control',C.kept],[g,'var(--bad)','Gave up control',C.gave]];
+  const cseg:[number,string,string,any[]][]=[[w,'var(--good)','Won the rack',C.won],[k,KC,'Held the initiative',C.kept],[g,'var(--bad)','Lost the initiative',C.gave]];
   const bg=rows.slice(0,5).reduce((a,r)=>r[1].length>a[1].length?r:a);
   const tile=(l:string,r:any)=>{const n=r.n.length,v=r.w.length;return <div {...(n?{className:'t',...act(()=>op(l,r.n,'racks',(e:Rec)=>r.w.includes(e)?'Won':'Lost'))}:{})}><div className="n">{l}</div><b>{n?Math.round(v/n*100)+'%':'—'}</b><div className="n">{n?v+' of '+n:'No racks yet'}</div>{n>0&&<span className="chev">›</span>}</div>};
   return <>
-    <div className="card"><CH t="Control" sub={<>{ws}{tot<EARLY.chances&&<Er/>}</>}/>
+    <div className="card"><CH t="Initiative" sub={<>{ws}{tot<EARLY.chances&&<Er/>}</>}/>
       {tot?<><div className="big">{Math.round(kc/tot*100)}% <span className="n">of chances</span></div>
-        <div className="n" style={{margin:'2px 0 10px'}}>You kept control on {kc} of your {tot} chances.</div>
+        <div className="n" style={{margin:'2px 0 10px'}}>You held the initiative on {kc} of your {tot} chances.</div>
         <div className="stk">{cseg.map(([n,c,t,a])=>n>0&&<i key={t} className="t" aria-label={t+' '+n} {...act(()=>op(t,a))} style={{width:n/tot*100+'%',background:c}}/>)}</div>
         <div className="lg">{cseg.map(([n,c,t,a])=><span key={t} className="t" {...act(()=>a.length&&op(t,a))}><i style={{background:c}}/>{t} {n}</span>)}</div></>
         :<div className="n">No resolved chances yet.</div>}
       {C.pend.length>0&&<div className="n">{C.pend.length} more not counted yet (no next visit)</div>}
       <div className="tl">{tile('Racks won as breaker',R.brk)}{tile('Racks won as receiver',R.rcv)}</div></div>
-    {tot>0&&<div className="card"><CH t="How control was lost" sub={<>{ws}{g<EARLY.leak&&<Er/>}</>}/>
+    {tot>0&&<div className="card"><CH t="How the initiative was lost" sub={<>{ws}{g<EARLY.leak&&<Er/>}</>}/>
       {g>0?<>{g>=EARLY.leak&&bg[1].length>0&&<div className="tk">Biggest leak: {bg[3]}, {bg[1].length} of {g}</div>}
         <div className="rws">{rows.map(([l,a,c])=><Rw key={l} l={l} v={a.length} w={a.length/g} c={c} dim={g<5} on={a.length?()=>op(l,a):undefined}/>)}</div></>
-        :<div className="n">You haven't lost control on a chance yet.</div>}
-      {ke>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op("Errors that didn't cost control",cs.keptErr)}>{ke} more error{ke===1?'':'s'} didn't cost you control ›</button></div>}</div>}
+        :<div className="n">You haven't lost the initiative on a chance yet.</div>}
+      {ke>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op("Errors that didn't cost the initiative",cs.keptErr)}>{ke} more error{ke===1?'':'s'} didn't cost you the initiative ›</button></div>}</div>}
   </>}
 // S3 blocks. Finishing includes solo; Defence and Hard shots are opponent-based (matches only).
 function FinishCard({cs,ws,op}:any){
@@ -111,8 +122,8 @@ export default function Stats({kind}:{kind:string}){
         return <div key={e.id}><div className="n">{se?new Date(se.d.start).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Session'}{se?.d.solo?' · Solo':op2?' · vs '+nm(op2):''} · Rack {e.d.rack}</div><Ln e={e} name={nm}/>{x&&<span className="tg">{x}</span>}</div>})}</div>
       <button className="ghost" style={{width:'100%',marginTop:10}} onClick={()=>setTc(null)}>Close</button></Sheet>}
     {s&&<>
-      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1,minWidth:0}}><div className="n">{me?.d.name} · {rs}</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}<div className="n">Confidence: <b>{confLabel(cf)}</b> · {Math.round(cf*100)}% of needed data</div></div><div style={{textAlign:'center',flex:'none'}}>{pv?<div style={{fontSize:40,fontWeight:800,lineHeight:1.1,color:'transparent',WebkitTextStroke:'2px var(--mute)'}}>{rankOf(R)}</div>:<div style={{fontSize:46,fontWeight:900,color:'var(--cloth)'}}>{rankOf(R)}</div>}{pv&&<div className="n" style={{margin:0,fontWeight:700}}>Provisional</div>}</div></div>
-        <div className="bar" style={{margin:'10px 0'}}><i style={{width:pg.pct*100+'%'}}/></div>
+      <div className="card"><div className="row" style={{flexWrap:'nowrap',gap:14}}><Avatar p={me} size={64}/><div style={{flex:1,minWidth:0}}><div className="n">{me?.d.name} · {rs}</div><div style={{fontSize:30,fontWeight:800,lineHeight:1.1}}>{Math.round(R)}<Dlt d={dR}/></div>{pg.next?<div className="n">{pg.left} to {pg.next}</div>:<div className="n">Top rank</div>}<div className="n">Confidence: <b>{confLabel(cf)}</b> · {Math.round(cf*100)}% of needed data</div></div><div style={{textAlign:'center',flex:'none'}}><Rank r={rankOf(R)} prov={pv}/>{pv&&<div className="n" style={{margin:0,fontWeight:700}}>Provisional</div>}</div></div>
+        <div className="bar" style={{margin:'10px 0'}}><i style={{width:pg.pct*100+'%',background:RKH(rankOf(R))}}/></div>
         {wk&&<div style={{marginBottom:10}}>Work on: <b>{ATTRS[wk.i]}</b> <span className="n">· {Math.round(wk.x.adj)} · n={wk.x.n}</span><div className="n" style={{margin:0}}>Lowest score among attributes with enough data.</div></div>}
         <select aria-label="Compare with" value={cmp} onChange={e=>setCmp(e.target.value)} style={{marginBottom:6}}><option value="">Compare with…</option>{ps.filter(p=>p.id!==sel).map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
         {ca&&<div className="key"><span><i/>{me?.d.name}</span><span><i className="d"/>{cn}</span></div>}

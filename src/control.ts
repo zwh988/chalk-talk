@@ -1,6 +1,6 @@
 import type {Rec} from './db';
 import {walk,isMe} from './stats';
-// Control model (STATS_CONTROL_SPEC.md). Pure, derived from the same `groups` (one sorted event list per session) as playerStats.
+// Initiative model (STATS_CONTROL_SPEC.md; "control" was renamed "initiative", identifiers kept). Pure, derived from the same `groups` (one sorted event list per session) as playerStats.
 // Every count is the list of records behind it (`.length` = the number), so drill-downs can never disagree with the numbers.
 // Opponent-based blocks skip solo sessions; Scotch records (sp/bp) and push-out visits are never counted.
 const CH=['Easy','Hard'],MISS=['Missed','Foul'],UF=['Pot','Position','Decision'],CAU=['Pot','Position','Decision','Other'];
@@ -9,9 +9,9 @@ const L=():Rec[]=>[];
 export function controlStats(pid:string,groups:Rec[][]){
   const c={
     m:0,                                              // number of match (non-solo) sessions seen; 0 = opponent blocks have no data
-    ctl:{won:L(),kept:L(),gave:L(),pend:L()},         // 3.2: chance visits by outcome (resolved = won+kept+gave)
+    ctl:{won:L(),kept:L(),gave:L(),pend:L()},         // 3.2: chance visits by outcome (resolved = won + kept (held the initiative) + gave (lost it))
     lost:{pot:L(),pos:L(),dec:L(),other:L(),hard:L(),safe:L()}, // 3.3: split of `gave`, exactly one reason each
-    keptErr:L(),                                      // 3.3 footnote: Easy-open Pot/Position/Decision misses that did not cost control
+    keptErr:L(),                                      // 3.3 footnote: Easy-open Pot/Position/Decision misses that did not cost the initiative
     safe:{easy:L(),hard:L(),cont:L(),esc:L(),miss:L(),foul:L(),pend:L()}, // 3.4: graded by the opponent's next visit
     esc:{made:L(),fail:L()},                          // 3.5: No-shot escape attempts
     hard:{made:L(),miss:L(),easy:L(),none:L(),pend:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // 3.6 (miss = 0 potted; easy/none/pend split the misses)
@@ -19,7 +19,9 @@ export function controlStats(pid:string,groups:Rec[][]){
       len:[{n:L(),ro:L()},{n:L(),ro:L()},{n:L(),ro:L()}], // chance visits by balls on the table at the start: 6+, 3–5, 1–2 (n = attempts, ro = ran out); first visit after own break excluded
       bnr:{n:L(),ro:L()},                             // break records: n = own breaks (not skip/golden) with a following visit, ro = same player then ran out
       golden:L()},                                    // golden breaks (break records)
-    rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}}        // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
+    rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}},       // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
+    ball:{made:0,pe:0,ok:0,pf:0},                     // rating only, solo included: per-ball counts over Easy-opening visits (made = balls potted minus flukes, pe = pot errors, ok/pf = position kept/failed)
+    escA:{made:L(),fail:L()}                          // rating only: No-shot escape attempts, solo included (c.esc is matches only)
   };
   for(const evs of groups){
     const it=walk(evs),solo=evs.some(e=>(e.d.by||'').includes('~')),duo=evs.some(e=>e.d.sp||e.d.bp);
@@ -45,6 +47,8 @@ export function controlStats(pid:string,groups:Rec[][]){
       // Finishing: chance visits by starting table size; the first visit after the player's own (non-skipped) break is break-and-run territory, so left out
       const pv=it[i-1],afterOwn=pv&&pv.kind==='break'&&pv.e.d.rack===d.rack&&pv.e.d.by===d.by&&!pv.e.d.skip&&!pv.e.d.nine;
       if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e)}
+      if(d.open==='Easy'){const m=Math.max(0,d.potted.length-(d.fl?.length||0)),pe=mf&&d.cause==='Pot'?1:0,b=c.ball;b.made+=m;b.pe+=pe;b.ok+=Math.max(0,m-1)+(m>0&&pe?1:0);b.pf+=mf&&d.cause==='Position'?1:0}
+      if(d.open==='None'&&['Escape hit','Missed','Foul'].includes(d.res))(d.res==='Escape hit'?c.escA.made:c.escA.fail).push(e);
       if(solo)return;   // everything below needs an opponent
       if(chance){
         if(d.won)c.ctl.won.push(e);

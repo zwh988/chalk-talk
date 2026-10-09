@@ -106,3 +106,5 @@ html,body{height:100%;overflow:hidden}
 .rw .rv{display:inline-flex;align-items:center;gap:6px}.rw.t,.stk i.t,.lg .t,.tl .t{cursor:pointer}.lg .t{padding:6px 0}.tl .t{position:relative}.tl .chev{position:absolute;right:10px;top:8px}
 .tr>div{padding:8px 0;border-top:1px solid var(--line);font-size:var(--fs-m)}.tr>div:first-child{border-top:0}.tr .n{margin:0 0 2px}
 .tl .t>.n:first-child{padding-right:14px}
+/* Rank badge tier colours: fixed tokens, not themeable (R2). SS/SSS use gradient stops. */
+:root{--rk-F:#5d7173;--rk-D:#94562c;--rk-C:#9db3ba;--rk-B:#2f6fa0;--rk-A:#3fc08f;--rk-S:#e8b536;--rk-SSa:#f6cf4a;--rk-SS:#f28a2c;--rk-SSSa:#f2c23a;--rk-SSSb:#b8329a;--rk-SSSc:#2bb7d6}

@@ -27,7 +27,7 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 | `photo.ts`                      | `shrink(file)` → small JPEG data URL                                                                                                                                                                           |
 | `delta.ts`                      | Recent-change helpers: `periods` (latest 4 vs previous 4 completed sessions, needs 8), `ppDelta` (pp change, hidden if either side <5 observations)                                                            |
 | `Photo.tsx`                     | Photo thumbnail, tap for full-screen view                                                                                                                                                                      |
-| `ui.tsx`                        | Cross-screen overlay primitives: `Sheet` (bottom sheet), `ask(msg,okLabel)` / `tell(msg)` promise dialogs (replace `confirm`/`alert`), `<Dialogs/>` mounted once in `App`                                      |
+| `ui.tsx`                        | Cross-screen overlay primitives: `Sheet` (bottom sheet), `ask(msg,okLabel)` / `tell(msg)` promise dialogs (replace `confirm`/`alert`), `<Dialogs/>` mounted once in `App`; `useBack(open,close)` back-stack hook + `Active` context (see UI/UX principles)                                      |
 | `stats.ts`                      | `walk()` replays a session (gives each visit its starting table); `playerStats`, `breakStats`                                                                                                                  |
 | `rating.ts` / `ratingConfig.ts` | Six attribute scores, shrinkage, 0–1000 rating, ranks. All tunables live in `ratingConfig`                                                                                                                     |
 | `Review.tsx`                    | Review → Players (rating card, radar, graphs) and Breaks                                                                                                                                                       |
@@ -37,7 +37,7 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 | `Practice.tsx`                  | Practice setup (player, venue, attempts/shot) and run (Made/Missed, undo, end, summary, mastery + why-now)                                                                                                     |
 | `practice.ts`                   | `shotStats` (per player+shot, derived), `mastery`/`level`, adaptive `weigh`/`pickNext`, all tunables in `PC`                                                                                                   |
 | `sync.ts`                       | GitHub sync, file layout below                                                                                                                                                                                 |
-| `App.tsx`                       | Tabs (Play, Review, Shots, More), Shots tab = Shots | Decks switch, Players, Session start, Sync screens                                                                                                       |
+| `App.tsx`                       | Tabs (Play, Review, Shots, More; labelled icons with derived badges; Play and Shots stay mounted when hidden, Review and More remount), Shots tab = Shots | Decks switch, Players, Session start, Sync screens                                                                                                       |
 | `theme.ts`, `Settings.tsx`      | CSS-variable theming, presets, status-bar colour                                                                                                                                                               |
 | `Avatar.tsx`, `Cropper.tsx`     | Player photos (192px JPEG data URL stored in the player record)                                                                                                                                                |
 
@@ -98,6 +98,8 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 * Newest first everywhere.
 * Destructive actions: `.danger` styling + `await ask('…','Verb')` (never native `confirm()`/`alert()`; use `tell()` for notices).
 * Overlays use `<Sheet>`.
+* Back navigation: any screen opened on top of a root screen (More sub-page, deck detail/editor, shot editor, flagged list, practice setup/run, cropper, every `Sheet`/`ask`) calls `useBack(open, close)` from `ui.tsx`, so Android Back / iOS swipe closes it instead of leaving the app. `close` may return `false` (or a promise of false) to veto: the shot editor does that when there are unsaved changes (also on its ‹ button), the practice run asks before ending. In-app ‹ buttons just set state; the hook keeps history in sync. Call `useBack` before any early return. A `Sheet` without `onClose` swallows Back. Screens inside a hidden tab don't join the stack (`Active` context provided per tab in `App`).
+* Nav badges (derived, never stored): dot on Play = a session without `end`; count on Shots = pending flags; count on More = `dirty` records (also shown on the Sync row). Each tab's scroll position is remembered in `App`.
 * Clean, functional, data-focused; the rank/radar card is the one deliberate game-style element — keep it restrained.
 * Theme via CSS variables (`--bg --panel --ink --mute --cloth --amber --nav --chip --line`); user can pick colours/presets. No light/dark selector for now.
 * Semantic colours are fixed tokens, not themeable (`--good --bad --warn`, defined in `styles.css`, absent from `theme.ts`): use them for better/worse/caution, never `--cloth`/`--amber`.
@@ -110,6 +112,7 @@ Goal: diagnostic, traceable stats (run-out from chance, balls run, break analysi
 ## Conventions
 
 * Dense, compact TypeScript (short names, one-line handlers, liberal `any`); single `styles.css`; shared small components inline in the screen file (cross-screen primitives go in `ui.tsx`). Match the surrounding style.
+* Hidden-mounted tabs (Play, Shots) keep running their `useLiveQuery`s; keep their screens light and don't add mount-time side effects that assume the tab is visible.
 * CSS gotcha: `font:600 14px inherit` is invalid (the whole declaration is dropped, leaving 13px regular). Use `font:600 var(--fs-m) var(--font)`.
 * Reactive reads with `useLiveQuery`; local React state for forms; no global store.
 

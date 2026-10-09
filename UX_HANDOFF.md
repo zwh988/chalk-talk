@@ -80,6 +80,14 @@ Personality: **90% serious performance tool, 10% pool personality.** Focused, pr
 - **Run screen:** header "End practice" (confirms via `ask` when attempts exist, same as Back); why-now line is a button that reveals "N% chance of this pick"; a sticky bar (`.stick` + `.pbar`) holds the attempt counter, a narrow Undo and equal solid **✓ Made** (`--good`) / **✗ Missed** (`--bad`) with text colour `--on` (new token: `#fff` light, `#0c1819` dark). Summary: "Practice done" with Done | Practice again.
 - Not rendered in a browser; layout of the new bar unverified. Starting a new practice while another is unfinished leaves the old banner after the new one ends (acceptable).
 
+**Chunk 7 (done), `Review.tsx` + `styles.css`:**
+- Filter row `.filt` (player full width; window + type side by side, with aria-labels). Type options: All types / Matches only / Solo only.
+- `CH` card header = title + scope (`ws`: "Last N sessions"/"All …"); rating card scope `rs` = "All N sessions" (ignores the window, respects the type filter). Top lines: "Faded = fewer than 5 observations" and either the arrows explanation or "Trends unlock after 8 completed sessions (N more)" (`dn` = completed sessions, `PN` = `N` from `delta.ts`).
+- Compare select moved above the radar; `.key` legend only while comparing. Radar labels 13, `Cols` labels 12 (viewBox 300x112, max-width 480).
+- "Where visits end" → "Lowest ball left after a miss" + n. **Assumption:** `d.low` is set in `Live.tsx` (not seen); `stats.ts` counts it only for `Missed` visits with an Easy/Hard opening. Confirm the meaning against `Live.tsx` if the title looks wrong.
+- 7b: rank letter provisional when `confidence < CONF[1][0]` (outlined, muted, "Provisional"); "Work on" line = lowest `adj` among attributes with n ≥ PROV/2, only when ≥2 qualify. `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`, `App.tsx` unchanged.
+- Verified: syntax-level `tsc` + a Playwright mock at 390px of the new pieces. Not run on a phone; typecheck/build unverified.
+
 **Gotchas to remember**
 - Call `useBack` before any early `return` in a component (hooks order). Hidden-mounted tabs keep their live queries running.
 - In `Live.tsx`, `BreakForm`/`VisitForm` have local state named `ask`/`setAsk`; import only `Sheet` there, not `ask` (name clash).
@@ -121,7 +129,7 @@ Do chunks in order unless the user reorders. Each lists files to attach, the wor
 
 ### Chunk 6 — Practice promotion and resume (DONE, see section 3)
 
-### Chunk 7 — Review restructure
+### Chunk 7 — Review restructure (DONE, see section 3)
 **Attach:** `Review.tsx`, `App.tsx` (the Review wrapper/`Seg` for Match history | Players | Breaks), `styles.css`; for 7b also `rating.ts`, `ratingConfig.ts`, `stats.ts`, `delta.ts`.
 **7a**
 - Replace the 3 stacked full-width selects with a compact filter row (player full width; window + type side by side).
@@ -195,7 +203,7 @@ Proposed UI-string-only changes (never rename data types like `session`):
 ## 7. Reference: audit findings behind the plan (condensed)
 - **Strengths:** domain-native input widgets with last-break prefill; progressive disclosure in the visit form; statistical honesty; coherent cloth/chalk/amber identity; safe-area/landscape care; trustworthy event-log undo.
 - **Weaknesses addressed so far:** single dashed button style for everything; unguarded End session next to Undo; semantic colours tied to brand tokens; four overlay patterns + native dialogs; unlabelled copy pointing to nonexistent tabs; clipped contact diagram; invalid button font shorthand; primary CTAs below the fold, state lost on tab switch / no back stack, session start re-asking everything, Practice buried and not resumable (chunks 3–6).
-- **Weaknesses still open:** Review filter wall, scope-label mismatch, loud rank on thin data, no radar legend (7); History is a raw log with tiny Delete rack link (8); no way to correct earlier visits (9); accessibility/iOS zoom/PWA update risk (10); terminology collisions; Shot library/More polish (11).
+- **Weaknesses still open:** History is a raw log with tiny Delete rack link (8); no way to correct earlier visits (9); accessibility/iOS zoom/PWA update risk (10); terminology collisions; Shot library/More polish (11).
 - **Developer-built vs product-built:** domain widgets feel product-built; the chrome (buttons, dialogs, empty states, text logs) felt developer-built — chunks 1–2 addressed buttons and dialogs; empty/loading/error states remain.
 
 ## 8. Per-chunk delivery checklist for the assistant

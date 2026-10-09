@@ -57,6 +57,8 @@ input,select{display:block;width:100%;margin-top:4px;padding:12px;border:1px sol
 }
 .bar{height:8px;background:var(--chip);border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--cloth)}
 html,body{height:100%;overflow:hidden}
+/* Deck card thumbnails: first 4 shots, 2x2 on phones, one row on wide screens */
+.dth{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 2px}.dth>div{min-width:0}.dth .n{margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(min-width:620px){.dth{grid-template-columns:repeat(4,1fr)}}
 /* Practice run: Made/Missed bar (inside .stick), equal-weight solid buttons; Undo is the narrow one beside them */
 .pbar{display:flex;gap:10px}.pbar button{min-height:60px;border:0;border-radius:12px;font:800 var(--fs-l) var(--font)}.pbar .mk{flex:1;color:var(--on)}.pbar .y{background:var(--good)}.pbar .m{background:var(--bad)}
 .pbar .u{flex:none;width:64px;background:none;border:1px solid var(--mute);color:var(--ink);font:600 var(--fs-m) var(--font);line-height:1.1}.pbar .u:disabled{opacity:.4}.pbar .u small{display:block;font-size:var(--fs-s)}

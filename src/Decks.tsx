@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {useLiveQuery} from 'dexie-react-hooks';
 import {db,save,drop,ofType} from './db';
 import {shotStats,tally,ago,mastery,level,PC} from './practice';
-import {ShotCard,title} from './Shots';
+import {ShotCard,title,Table} from './Shots';
 import Practice,{Setup,unfinished} from './Practice';
 import {ask,useBack,Sheet} from './ui';
 const lc=(s:any)=>(s||'').toLowerCase();
@@ -72,7 +72,7 @@ export default function Decks({seg}:any){
     {pu&&(()=>{const x=pu.x,dk=ks.find(q=>q.id===x.d.deck);return <div className="card" style={{borderColor:'var(--amber)',borderWidth:2}}><b>Practice in progress</b><div className="n">{x.d.deckName} · {nm(x.d.by)} · {pu.n} attempt{pu.n===1?'':'s'} · started {ago(x.d.start)}{!dk&&' · deck deleted'}</div>
       <div className="row">{dk&&<button className="go sm" style={{flex:1}} onClick={()=>setRun({sid:x.id,pd:x.d})}>Resume</button>}{pu.n?<button className="ghost" onClick={async()=>{if(await ask(`End this practice? Its ${pu.n} attempt${pu.n===1?' is':'s are'} kept.`,'End practice',false))save('practice',{...x.d,end:Date.now()},x.id)}}>End practice</button>:<button className="ghost danger" onClick={()=>drop(x.id)}>Discard</button>}</div></div>})()}
     {!ks.length&&<p className="n">No decks yet. A smart deck follows a tag or player; a custom deck is hand-picked.</p>}
-    {ks.map(x=>{const lp=Math.max(0,...pss.filter(q=>q.d.deck===x.id).map(q=>q.d.start)),n=deckShots(x.d,ss).length;return <div key={x.id} className="card"><button className="hist" onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {n} shot{n===1?'':'s'}</div></button>
+    {ks.map(x=>{const lp=Math.max(0,...pss.filter(q=>q.d.deck===x.id).map(q=>q.d.start)),sh=deckShots(x.d,ss),n=sh.length;return <div key={x.id} className="card"><button className="hist" onClick={()=>setSel(x.id)}><b>{x.d.name}</b><div className="n">{sum(x.d,nm)} · {n} shot{n===1?'':'s'}</div>{n>0&&<div className="dth">{sh.slice(0,4).map(s=><div key={s.id}><Table d={s.d} small/><div className="n">{title(s.d,ss,s.id)}</div></div>)}</div>}</button>
       <div className="row" style={{justifyContent:'space-between',flexWrap:'nowrap',marginTop:4}}><span className="n" style={{margin:0}}>{lp?`Last practiced ${ago(lp)}`:'Not practiced yet'}</span><button className="go sm" disabled={!n} onClick={()=>setSu(x)}>Start practice</button></div></div>})}
     {pss.some(x=>!ks.some(q=>q.id===x.d.deck))&&<div className="card"><h2>History from deleted decks</h2><Hist xs={pss.filter(x=>!ks.some(q=>q.id===x.d.deck)).sort((a,b)=>b.d.start-a.d.start)} at={at} nm={nm} del={delS} edit={setEp} deck/></div>}{eps}{sus}</>;
 }

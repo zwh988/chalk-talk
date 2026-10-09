@@ -73,17 +73,15 @@ function Session({toPlayers}:{toPlayers:()=>void}){
   const last=[...ss].sort((x,y)=>(y.d.start||0)-(x.d.start||0))[0],okP=(id?:string)=>id&&ps.some(p=>p.id===id)?id:'',lp=last?.d.players||[],lt=last?.d.teams;
   const df:any=last?{fmt:last.d.fmt==='scotch'?'scotch':'singles',a:okP(lp[0]),b:last.d.solo?'solo':okP(lp[1]),a2:okP(lt?.[0]?.[1]),b2:okP(lt?.[1]?.[1]),venue:vs.find(v=>v.id===last.d.venueId)?.id||vs.find(v=>v.d.name===last.d.venue)?.id||'',tbl:last.d.table??''}:{fmt:'singles',a:'',b:'',a2:'',b2:'',venue:'',tbl:''};
   const g=(k:string)=>k in o?o[k]:df[k],set=(k:string,x:string)=>setO((p:any)=>({...p,[k]:x})),st=(k:string)=>(x:string)=>set(k,x);
-  const a=g('a'),b=g('b'),a2=g('a2'),b2=g('b2'),venue=g('venue'),tbl=g('tbl'),fmt=g('fmt'),sc=fmt==='scotch',dif=Object.keys(o).some(k=>o[k]!==df[k]),dok=!!(last&&df.a&&df.b&&(df.fmt!=='scotch'||(df.a2&&df.b2)));
+  const a=g('a'),b=g('b'),a2=g('a2'),b2=g('b2'),venue=g('venue'),tbl=g('tbl'),fmt=g('fmt'),sc=fmt==='scotch';
   const venues=[...new Set(ss.map(s=>s.d.venue as string).filter(Boolean))];
   const nm=(id:string)=>(all.find(p=>p.id===base(id))?.d.name??'?')+(id.includes('~')?' (2)':'');
   if(active)return <Live session={active} name={nm} pr={(id:string)=>all.find(p=>p.id===base(id))} end={()=>save('session',{...active.d,end:Date.now()},active.id)}/>;
   const ok=sc?[a,a2,b,b2].every(Boolean)&&new Set([a,a2,b,b2]).size===4&&b!=='solo':a&&b&&a!==b;
   const opts=ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>);
   const sel=(l:string,v:string,f:any,solo?:boolean)=><label>{l}<select value={v} onChange={e=>f(e.target.value)}><option value="">Choose…</option>{solo&&<option value="solo">Myself (solo practice)</option>}{opts}</select></label>;
-  const n2=(id:string)=>id==='solo'?'Myself':nm(id),sum=df.fmt==='scotch'?`${n2(df.a)} & ${n2(df.a2)} vs ${n2(df.b)} & ${n2(df.b2)}`:`${n2(df.a)} vs ${n2(df.b)}`;
   return <><h1>New session</h1>
     {!ps.length?<div className="card"><p className="n">Add at least two players to get started.</p><button className="go" onClick={toPlayers}>Add players</button></div>:<div className="card">
-      {dok&&(dif?<button className="ghost" style={{marginBottom:12}} onClick={()=>setO({})}>Rematch · {sum}</button>:<div className="n" style={{marginBottom:12}}>Same as last match · {sum}</div>)}
       <label>Session name (optional)<input value={sname} onChange={e=>setN(e.target.value)} placeholder="e.g. Filler vs Shaw, WCS final"/></label>
       <Seg items={[['singles','Singles'],['scotch','Scotch Doubles']]} cur={fmt} set={(v:string)=>{set('fmt',v);if(v==='scotch'&&b==='solo')set('b','')}}/>
       {sel(sc?'Our team · Player A':'Player 1',a,st('a'))}{sc&&sel('Our team · Player B',a2,st('a2'))}{sel(sc?'Opponent · Player A':'Player 2',b,st('b'),!sc)}{sc&&sel('Opponent · Player B',b2,st('b2'))}

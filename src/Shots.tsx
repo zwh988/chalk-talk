@@ -8,6 +8,7 @@ const POCK:[number,number][]=[[0,0],[50,0],[100,0],[0,50],[50,50],[100,50]];
 const PNAME=['top-left','top-side','top-right','bottom-left','bottom-side','bottom-right'];
 const BR=1.125,DIA=2.25;
 const SPEEDS=['Pocket speed','Soft','Medium','Firm','Max power'];
+const PMAX=12;   // max cue-ball path points after contact (each rail hit is one point)
 const blank=()=>({no:0,tag:'',name:'',by:'',balls:[{n:0,x:25,y:25}],target:null as number|null,pocket:null as number|null,path:[] as any[],tip:[100,100],pw:3,leave:null as any,note:''});
 // Ghost ball, cut angle and distances are derived from the diagram, never typed in.
 export function measure(d:any){
@@ -79,7 +80,7 @@ function Editor({init,id,players,shots,onDone,flag}:any){
     if(h){drag.current={k:'ball',n:h.n};if(mode==='target'&&h.n!==0)setD({...d,target:h.n});else if(mode==='balls')setSel(h.n);return}
     if(mode==='balls'){if(sel!==null)put(sel,p)}
     else if(mode==='target'){const pk=POCK.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<7);if(pk>=0)setD({...d,pocket:pk})}
-    else if(mode==='path'){if(d.path.length<4)setD({...d,path:[...d.path,snap(p)]})}
+    else if(mode==='path'){if(d.path.length<PMAX)setD({...d,path:[...d.path,snap(p)]})}
     else setD({...d,leave:{x:p.x,y:p.y,tol:d.leave?.tol??6}});
   };
   const mv=(e:any)=>{const g=drag.current;if(!g)return;const p=pt(e);

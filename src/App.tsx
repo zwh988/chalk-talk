@@ -10,6 +10,7 @@ import Decks from './Decks';
 import {unfinished} from './Practice';
 import Live from './Live';
 import Settings from './Settings';
+import Info from './Info';
 import History from './History';
 import {ask,tell,Dialogs,Active,useBack} from './ui';
 import {getCfg,setCfg,sync} from './sync';
@@ -40,9 +41,9 @@ function ShotsHome({fl}:{fl:number}){const [v,setV]=useState('decks'),seg=<Seg i
 function Review(){const [v,setV]=useState('sessions');return <><Seg items={[['sessions','Match history'],['players','Players'],['breaks','Breaks']]} cur={v} set={setV}/>
   {v==='sessions'?<History/>:<Stats kind={v}/>}</>}
 function More({init}:{init?:string}){
-  const [v,setV]=useState(init||''),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])||0;const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['settings','Settings']];
+  const [v,setV]=useState(init||''),dy=useLiveQuery(()=>db.recs.where('dirty').equals(1).count(),[])||0;const items:[string,string][]=[['players','Players'],['venues','Venues'],['sync','Sync'],['info','Info'],['settings','Settings']];
   useBack(!!v,()=>setV(''));
-  if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:<Settings/>}</>;
+  if(v)return <><button className="back" onClick={()=>setV('')}>‹ More</button>{v==='players'?<Players/>:v==='venues'?<Venues/>:v==='sync'?<Sync/>:v==='info'?<Info/>:<Settings/>}</>;
   return <><h1>More</h1>{items.map(([k,l])=><button key={k} className="nav-row" onClick={()=>setV(k)}><span>{l}{k==='sync'&&dy>0&&<span className="n"> · {dy} unsynced</span>}</span><span>›</span></button>)}</>;
 }
 function Players(){

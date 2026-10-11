@@ -20,6 +20,7 @@ export function controlStats(pid:string,groups:Rec[][]){
       bnr:{n:L(),ro:L()},                             // break records: n = own breaks (not skip/golden) with a following visit, ro = same player then ran out
       golden:L()},                                    // golden breaks (break records)
     rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}},       // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
+    oth:L(),                                          // Easy-opening Missed/Foul visits whose cause is Other (or blank/legacy), whether or not they cost the initiative; matches only; shown, never scored
     ball:{made:0,pe:0,ok:0,pf:0},                     // rating only, solo included: per-ball counts over Easy-opening visits (made = balls potted minus flukes, pe = pot errors, ok/pf = position kept/failed)
     escA:{made:L(),fail:L()}                          // rating only: No-shot escape attempts, solo included (c.esc is matches only)
   };
@@ -48,8 +49,11 @@ export function controlStats(pid:string,groups:Rec[][]){
       const pv=it[i-1],afterOwn=pv&&pv.kind==='break'&&pv.e.d.rack===d.rack&&pv.e.d.by===d.by&&!pv.e.d.skip&&!pv.e.d.nine;
       if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e)}
       if(d.open==='Easy'){const m=Math.max(0,d.potted.length-(d.fl?.length||0)),pe=mf&&d.cause==='Pot'?1:0,b=c.ball;b.made+=m;b.pe+=pe;b.ok+=Math.max(0,m-1)+(m>0&&pe?1:0);b.pf+=mf&&d.cause==='Position'?1:0}
-      if(d.open==='None'&&['Escape hit','Missed','Foul'].includes(d.res))(d.res==='Escape hit'?c.escA.made:c.escA.fail).push(e);
+      // No-shot visits: made = Escape hit, rack won, or any ball potted (even if it then missed/fouled); failed = Missed/Foul with nothing potted; Safe played is neither
+      const es=d.open==='None'?(d.res==='Escape hit'||d.res==='Won rack'||d.potted?.length>0?1:MISS.includes(d.res)?0:-1):-1;
+      if(es>=0)(es?c.escA.made:c.escA.fail).push(e);
       if(solo)return;   // everything below needs an opponent
+      if(d.open==='Easy'&&mf&&!UF.includes(d.cause))c.oth.push(e);
       if(chance){
         if(d.won)c.ctl.won.push(e);
         else if(!['Easy','Hard','None'].includes(no))c.ctl.pend.push(e);
@@ -65,9 +69,9 @@ export function controlStats(pid:string,groups:Rec[][]){
         if(!n)s.pend.push(e);
         else if(no==='Easy'||n.won)s.easy.push(e);
         else if(no==='Hard')s.hard.push(e);
-        else if(no==='None'){const r=n.res;if(r==='Safe played')s.cont.push(e);else if(r==='Escape hit')s.esc.push(e);else if(r==='Missed')s.miss.push(e);else if(r==='Foul')s.foul.push(e);else s.pend.push(e)}
+        else if(no==='None'){const r=n.res,pt=n.potted?.length>0;if(r==='Safe played')s.cont.push(e);else if(r==='Escape hit'||(pt&&(r==='Missed'||r==='Foul')))s.esc.push(e);else if(r==='Missed')s.miss.push(e);else if(r==='Foul')s.foul.push(e);else s.pend.push(e)}
         else s.pend.push(e)}
-      if(d.open==='None'&&['Escape hit','Missed','Foul'].includes(d.res))(d.res==='Escape hit'?c.esc.made:c.esc.fail).push(e);
+      if(es>=0)(es?c.esc.made:c.esc.fail).push(e);
       if(d.open==='Hard'&&!['Safe played','Escape hit'].includes(d.res)){
         const h=c.hard;
         if(d.potted.length>=1)h.made.push(e);

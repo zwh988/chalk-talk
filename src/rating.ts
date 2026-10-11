@@ -1,7 +1,7 @@
 import {walk,isMe} from './stats';
 import {controlStats} from './control';
 import type {Rec} from './db';
-import {W,PROV,AN,RO,MINB,RANKS,ATTRS,CONF} from './ratingConfig';
+import {W,PROV,AN,RO,MINB,RANKS,ATTRS,CONF,HARD} from './ratingConfig';
 export {ATTRS,PROV,CONF};
 const sc=(r:number,k:[number,number])=>Math.max(0,Math.min(100,(r-k[0])/(k[1]-k[0])*100));
 const avg=(xs:(number|null)[])=>{const v=xs.filter((x):x is number=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
@@ -9,8 +9,11 @@ const avg=(xs:(number|null)[])=>{const v=xs.filter((x):x is number=>x!=null);ret
 // Definitions: RATING_AND_INITIATIVE_UPDATE.md B2. Every rate is a clean/success rate (higher = better).
 export function attrs(pid:string,groups:Rec[][]){
   const c=controlStats(pid,groups),L=(x:any[])=>x.length;
-  // Finishing: run-out rate per start-length bucket (6+, 3–5, 1–2), each scored on its own; buckets under MINB chances are left out
-  const fb=c.fin.len.map((g,i)=>L(g.n)>=MINB?{n:L(g.n),s:sc(L(g.ro)/L(g.n),RO[i])}:null).filter(Boolean) as {n:number;s:number}[];
+  // Finishing: run-out rate per start-length bucket (6+, 3–5, 1–2), each scored on its own and averaged by weight min(1, n/MINB) (no cliff when a bucket reaches MINB); needs at least one bucket with MINB chances
+  const fb=c.fin.len.map((g,i)=>L(g.n)>0?{n:L(g.n),w:Math.min(1,L(g.n)/MINB),s:sc(L(g.ro)/L(g.n),RO[i])}:null).filter(Boolean) as {n:number;w:number;s:number}[];
+  const fw=fb.reduce((a,x)=>a+x.w,0),fo=fb.some(x=>x.n>=MINB);
+  // Shotmaking = Easy-opening per-ball pot rate (solo included) blended with the Hard-opening make rate (matches only; misses count, flukes are not makes). Hard weight grows with attempts up to HARD.n; needs Easy data
+  const hn=L(c.hard.made)+L(c.hard.miss),hm=c.hard.made.filter((e:any)=>(e.d.potted?.length||0)>(e.d.fl?.length||0)).length,hs=HARD.w*Math.min(1,hn/HARD.n),ez=c.ball.made+c.ball.pe?sc(c.ball.made/(c.ball.made+c.ball.pe),AN.pot):null;
   // Defence: forced-error rate and safe rate over resolved safeties (matches only), escape success (matches + solo)
   const sf=c.safe,rs=L(sf.easy)+L(sf.hard)+L(sf.cont)+L(sf.esc)+L(sf.miss)+L(sf.foul),fe=L(sf.esc)+L(sf.miss)+L(sf.foul),et=L(c.escA.made)+L(c.escA.fail);
   // Decision: every Easy-opening Decision error (cost the initiative or not) + gambles lost, per resolved chance (matches only)
@@ -24,8 +27,8 @@ export function attrs(pid:string,groups:Rec[][]){
       if(d.nine)t.brkRun++;else{const nx=it.slice(i+1).find((y:any)=>y.kind==='visit'&&y.e.d.rack===d.rack);if(nx&&nx.e.d.by===d.by&&nx.e.d.won)t.brkRun++}});
   }
   const b=c.ball,A:{raw:number|null;n:number}[]=[
-    {raw:fb.length?fb.reduce((a,x)=>a+x.s,0)/fb.length:null,n:fb.reduce((a,x)=>a+x.n,0)},
-    {raw:b.made+b.pe?sc(b.made/(b.made+b.pe),AN.pot):null,n:b.made+b.pe},
+    {raw:fo?fb.reduce((a,x)=>a+x.s*x.w,0)/fw:null,n:fo?fb.reduce((a,x)=>a+x.n,0):0},
+    {raw:ez==null?null:(1-hs)*ez+(hn?hs*sc(hm/hn,AN.hard):0),n:ez==null?0:b.made+b.pe+hn},
     {raw:b.ok+b.pf?sc(b.ok/(b.ok+b.pf),AN.pos):null,n:b.ok+b.pf},
     {raw:t.brk?.3*sc(t.brkOK/t.brk,AN.brkOK)+.3*sc(t.brkBalls/t.brk,AN.brkBalls)+.3*sc(t.brkRun/t.brk,AN.brkRun)+.1*sc(1-t.brkScr/t.brk,AN.brkClean):null,n:t.brk},
     {raw:avg([rs?sc(fe/rs,AN.forced):null,rs?sc(1-L(sf.easy)/rs,AN.safe):null,et?sc(L(c.escA.made)/et,AN.esc):null]),n:rs+et},

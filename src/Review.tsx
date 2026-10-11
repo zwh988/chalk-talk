@@ -20,7 +20,7 @@ const poly=(v:number[])=>v.map((x,i)=>pt(i,x).join(',')).join(' ');
 const Radar=({a,b}:any)=><svg viewBox="0 0 300 300" style={{width:'100%',maxWidth:340,display:'block',margin:'auto'}}>{[33,66,100].map(k=><polygon key={k} points={poly(Array(6).fill(k))} fill="none" stroke="var(--line)"/>)}
   {ATTRS.map((n,i)=>{const [x,y]=pt(i,100),[lx,ly]=pt(i,122);return <g key={n}><line x1="150" y1="150" x2={x} y2={y} stroke="var(--line)"/><text x={lx} y={ly+4} textAnchor="middle" fontSize="13" fill="var(--mute)">{n}</text></g>})}
   {b&&<polygon points={poly(b)} fill="var(--amber)" fillOpacity=".12" stroke="var(--amber)" strokeWidth="2" strokeDasharray="5 4"/>}<polygon points={poly(a)} fill="var(--cloth)" fillOpacity=".3" stroke="var(--cloth)" strokeWidth="2.5"/></svg>;
-const UNIT=['chances','balls','balls','breaks','defences','chances'],words=(n:number,u:string)=>n+' '+(n===1?u.replace(/ces$/,'ce').replace(/s$/,''):u);   // attribute sample sizes, in plain words
+const UNIT=['chances','shots','balls','breaks','defences','chances'],words=(n:number,u:string)=>n+' '+(n===1?u.replace(/ces$/,'ce').replace(/s$/,''):u);   // attribute sample sizes, in plain words
 const TRow=({l,g}:any)=><div className={'srow'+(g.n<5?' dim':'')}><span>{l}</span><span className="n">{words(g.n,'breaks')} · 1-ball {pc(g.one,g.n)}% · droppers {g.n?(g.drops/g.n).toFixed(1):'—'} · scratch {pc(g.scr,g.n)}%</span></div>;
 // Card title + scope (what data the card covers).
 const CH=({t,sub}:any)=><div className="ch"><h2>{t}</h2>{sub&&<span className="n">{sub}</span>}</div>;
@@ -34,7 +34,7 @@ const act=(f:()=>any)=>({role:'button',tabIndex:0,onClick:f,onKeyDown:(e:any)=>{
 const Rw=({l,v,w,c,dim,sw,on}:any)=><div className={'rw'+(dim?' dim':'')+(on?' t':'')} {...(on?act(on):{})}><div className="rt"><span>{sw&&<i className="sw" style={{background:c}}/>}{l}</span><span className="rv"><b>{v}</b>{on&&<span className="chev">›</span>}</span></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
 const KC='color-mix(in srgb,var(--good) 45%,var(--panel))',HC='color-mix(in srgb,var(--warn) 55%,var(--panel))',NC='color-mix(in srgb,var(--mute) 35%,var(--panel))';   // segment colours differ in lightness, not just hue
 function ControlCards({cs,ws,op}:any){
-  const C=cs.ctl,w=C.won.length,k=C.kept.length,g=C.gave.length,tot=w+k+g,kc=w+k,Lo=cs.lost,ke=cs.keptErr.length,R=cs.rack;
+  const C=cs.ctl,w=C.won.length,k=C.kept.length,g=C.gave.length,tot=w+k+g,kc=w+k,Lo=cs.lost,ke=cs.keptErr.length,ot=cs.oth.length,R=cs.rack;
   const rows:[string,any[],string,string][]=[['Position error',Lo.pos,'var(--bad)','Position errors'],['Potting error',Lo.pot,'var(--bad)','Potting errors'],['Decision error',Lo.dec,'var(--bad)','Decision errors'],['Safety left an easy shot',Lo.safe,'var(--warn)','Safeties that left an easy shot'],['Hard shot missed, left an easy one',Lo.hard,'var(--warn)','Hard shots missed that left an easy one'],['Other miss',Lo.other,'var(--mute)','']];
   const cseg:[number,string,string,any[]][]=[[w,'var(--good)','Won the rack',C.won],[k,KC,'Held the initiative',C.kept],[g,'var(--bad)','Lost the initiative',C.gave]];
   const bg=rows.slice(0,5).reduce((a,r)=>r[1].length>a[1].length?r:a);
@@ -52,7 +52,8 @@ function ControlCards({cs,ws,op}:any){
       {g>0?<>{g>=EARLY.leak&&bg[1].length>0&&<div className="tk">Biggest leak: {bg[3]}, {bg[1].length} of {g}</div>}
         <div className="rws">{rows.map(([l,a,c])=><Rw key={l} l={l} v={a.length} w={a.length/g} c={c} dim={g<5} on={a.length?()=>op(l,a):undefined}/>)}</div></>
         :<div className="n">You haven't lost the initiative on a chance yet.</div>}
-      {ke>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op("Errors that didn't cost the initiative",cs.keptErr)}>{ke} more error{ke===1?'':'s'} didn't cost you the initiative ›</button></div>}</div>}
+      {ke>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op("Errors that didn't cost the initiative",cs.keptErr)}>{ke} more error{ke===1?'':'s'} didn't cost you the initiative ›</button></div>}
+      {ot>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op('Easy-shot misses logged as Other (not scored)',cs.oth)}>{ot} easy-shot miss{ot===1?'':'es'} logged as Other, not scored ›</button></div>}</div>}
   </>}
 // S3 blocks. Finishing includes solo; Defence and Hard shots are opponent-based (matches only).
 function FinishCard({cs,ws,op}:any){
@@ -120,8 +121,8 @@ export default function Stats({kind}:{kind:string}){
         {wk&&<div style={{marginBottom:10}}>Work on: <b>{ATTRS[wk.i]}</b> <span className="n">· {Math.round(wk.x.adj)} · {words(wk.x.n,UNIT[wk.i])}</span><div className="n" style={{margin:0}}>Lowest score among attributes with enough data.</div></div>}
         <select aria-label="Compare with" value={cmp} onChange={e=>setCmp(e.target.value)} style={{marginBottom:6}}><option value="">Compare with…</option>{ps.filter(p=>p.id!==sel).map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select>
         {ca&&<div className="key"><span><i/>{me?.d.name}</span><span><i className="d"/>{cn}</span></div>}
-        <Radar a={at.map(x=>x.adj)} b={ca?ca.map(x=>x.adj):null}/>
-        {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}<span className="n"> · {words(at[i].n,UNIT[i])}</span>{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{Math.round(at[i].adj)}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:at[i].adj+'%'}}/></div></div>)}<div className="n">▲▼ = change vs the 4 sessions before · – = not enough data to compare</div></div>
+        <Radar a={at.map(x=>x.n?x.adj:0)} b={ca?ca.map(x=>x.n?x.adj:0):null}/>
+        {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}<span className="n"> · {words(at[i].n,UNIT[i])}</span>{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{at[i].n?Math.round(at[i].adj):'–'}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:(at[i].n?at[i].adj:0)+'%'}}/></div></div>)}<div className="n">▲▼ = change vs the 4 sessions before · – = not enough data to compare</div></div>
       {cs&&cs.m>0&&<ControlCards cs={cs} ws={ws} op={op}/>}
       {cs&&<FinishCard cs={cs} ws={ws} op={op}/>}
       {cs&&cs.m>0&&<><DefenceCard cs={cs} ws={ws} op={op}/><HardCard cs={cs} ws={ws} op={op}/></>}

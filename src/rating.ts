@@ -1,7 +1,7 @@
 import {walk,isMe} from './stats';
 import {controlStats} from './control';
 import type {Rec} from './db';
-import {W,PROV,AN,RO,MINB,RANKS,ATTRS,CONF,HARD} from './ratingConfig';
+import {W,PROV,AN,FIN,MINF,RANKS,ATTRS,CONF,HARD} from './ratingConfig';
 export {ATTRS,PROV,CONF};
 const sc=(r:number,k:[number,number])=>Math.max(0,Math.min(100,(r-k[0])/(k[1]-k[0])*100));
 const avg=(xs:(number|null)[])=>{const v=xs.filter((x):x is number=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
@@ -9,9 +9,9 @@ const avg=(xs:(number|null)[])=>{const v=xs.filter((x):x is number=>x!=null);ret
 // Definitions: RATING_AND_INITIATIVE_UPDATE.md B2. Every rate is a clean/success rate (higher = better).
 export function attrs(pid:string,groups:Rec[][]){
   const c=controlStats(pid,groups),L=(x:any[])=>x.length;
-  // Finishing: run-out rate per start-length bucket (6+, 3–5, 1–2), each scored on its own and averaged by weight min(1, n/MINB) (no cliff when a bucket reaches MINB); needs at least one bucket with MINB chances
-  const fb=c.fin.len.map((g,i)=>L(g.n)>0?{n:L(g.n),w:Math.min(1,L(g.n)/MINB),s:sc(L(g.ro)/L(g.n),RO[i])}:null).filter(Boolean) as {n:number;w:number;s:number}[];
-  const fw=fb.reduce((a,x)=>a+x.w,0),fo=fb.some(x=>x.n>=MINB);
+  // Finishing: every chance (first visit after own break excluded) has an expected run-out chance p = FIN.r^balls, × FIN.hard for a Hard opening, × FIN.problem for a Problem table, clamped to .02–.98. A run-out is worth 1−p (long runs worth a lot), a failed chance costs p (short runs cost a lot). Score = weighted success rate S/(S+F) between FIN.lo and FIN.hi; needs MINF chances
+  let fS=0,fF=0;for(const {e,n} of c.fin.ch){const d=e.d,p=Math.max(.02,Math.min(.98,FIN.r**n*(d.open==='Hard'?FIN.hard:1)*(d.board==='Problem'?FIN.problem:1)));if(d.won&&d.runout)fS+=1-p;else fF+=p}
+  const fn=L(c.fin.ch),fo=fn>=MINF;
   // Shotmaking = Easy-opening per-ball pot rate (solo included) blended with the Hard-opening make rate (matches only; misses count, flukes are not makes). Hard weight grows with attempts up to HARD.n; needs Easy data
   const hn=L(c.hard.made)+L(c.hard.miss),hm=c.hard.made.filter((e:any)=>(e.d.potted?.length||0)>(e.d.fl?.length||0)).length,hs=HARD.w*Math.min(1,hn/HARD.n),ez=c.ball.made+c.ball.pe?sc(c.ball.made/(c.ball.made+c.ball.pe),AN.pot):null;
   // Defence: forced-error rate and safe rate over resolved safeties (matches only), escape success (matches + solo)
@@ -27,7 +27,7 @@ export function attrs(pid:string,groups:Rec[][]){
       if(d.nine)t.brkRun++;else{const nx=it.slice(i+1).find((y:any)=>y.kind==='visit'&&y.e.d.rack===d.rack);if(nx&&nx.e.d.by===d.by&&nx.e.d.won)t.brkRun++}});
   }
   const b=c.ball,A:{raw:number|null;n:number}[]=[
-    {raw:fo?fb.reduce((a,x)=>a+x.s*x.w,0)/fw:null,n:fo?fb.reduce((a,x)=>a+x.n,0):0},
+    {raw:fo?sc(fS/(fS+fF),[FIN.lo,FIN.hi]):null,n:fo?fn:0},
     {raw:ez==null?null:(1-hs)*ez+(hn?hs*sc(hm/hn,AN.hard):0),n:ez==null?0:b.made+b.pe+hn},
     {raw:b.ok+b.pf?sc(b.ok/(b.ok+b.pf),AN.pos):null,n:b.ok+b.pf},
     {raw:t.brk?.3*sc(t.brkOK/t.brk,AN.brkOK)+.3*sc(t.brkBalls/t.brk,AN.brkBalls)+.3*sc(t.brkRun/t.brk,AN.brkRun)+.1*sc(1-t.brkScr/t.brk,AN.brkClean):null,n:t.brk},

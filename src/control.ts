@@ -17,6 +17,7 @@ export function controlStats(pid:string,groups:Rec[][]){
     hard:{made:L(),miss:L(),easy:L(),none:L(),pend:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // 3.6 (miss = 0 potted; easy/none/pend split the misses)
     fin:{                                             // 3.7 (solo included)
       len:[{n:L(),ro:L()},{n:L(),ro:L()},{n:L(),ro:L()}], // chance visits by balls on the table at the start: 6+, 3–5, 1–2 (n = attempts, ro = ran out); first visit after own break excluded
+      ch:[] as {e:Rec;n:number}[],                   // the same chance visits one by one as {e, n = balls on the table at the start}; the rating weights each by its difficulty
       bnr:{n:L(),ro:L()},                             // break records: n = own breaks (not skip/golden) with a following visit, ro = same player then ran out
       golden:L()},                                    // golden breaks (break records)
     rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}},       // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
@@ -47,7 +48,7 @@ export function controlStats(pid:string,groups:Rec[][]){
       const chance=CH.includes(d.open),mf=MISS.includes(d.res);
       // Finishing: chance visits by starting table size; the first visit after the player's own (non-skipped) break is break-and-run territory, so left out
       const pv=it[i-1],afterOwn=pv&&pv.kind==='break'&&pv.e.d.rack===d.rack&&pv.e.d.by===d.by&&!pv.e.d.skip&&!pv.e.d.nine;
-      if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e)}
+      if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e);c.fin.ch.push({e,n:x.start.length})}
       if(d.open==='Easy'){const m=Math.max(0,d.potted.length-(d.fl?.length||0)),pe=mf&&d.cause==='Pot'?1:0,b=c.ball;b.made+=m;b.pe+=pe;b.ok+=Math.max(0,m-1)+(m>0&&pe?1:0);b.pf+=mf&&d.cause==='Position'?1:0}
       // No-shot visits: made = Escape hit, rack won, or any ball potted (even if it then missed/fouled); failed = Missed/Foul with nothing potted; Safe played is neither
       const es=d.open==='None'?(d.res==='Escape hit'||d.res==='Won rack'||d.potted?.length>0?1:MISS.includes(d.res)?0:-1):-1;

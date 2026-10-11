@@ -1,6 +1,6 @@
 // More → Info: static reference (logging rubrics + how the rating is calculated). No data, no state.
 // Weights, score ranges, data targets, ranks and confidence bands are read from ratingConfig.ts so the numbers cannot drift; the wording is hand-written and must be edited if a formula changes (rating.ts).
-import {ATTRS,W,PROV,AN,RO,HARD,MINB,RANKS,CONF} from './ratingConfig';
+import {ATTRS,W,PROV,AN,FIN,HARD,MINF,RANKS,CONF} from './ratingConfig';
 const pc=(x:number)=>Math.round(x*100)+'%';
 const rg=(k:[number,number])=>`0 at ${pc(k[0])}, 100 at ${pc(k[1])}`;
 const U=['chances','shots','balls','breaks','safeties and escapes','chances'];
@@ -42,8 +42,8 @@ export default function Info(){
       <div className="n" style={{marginTop:8}}>Weights and score ranges are starting values and will be tuned as more matches are logged.</div></div>
 
     <div className="card"><h2>The six attributes</h2>
-      <Attr i={0} data="matches and solo" lines={[`6+ balls: ${rg(RO[0])}`,`3 to 5 balls: ${rg(RO[1])}`,`1 to 2 balls: ${rg(RO[2])}`]}>
-        How often you finish the rack. Your run-out rate when you get a chance with 6 or more, 3 to 5, and 1 or 2 balls on the table, each scored separately and averaged. The first visit after your own break is not included. A group counts in full from {MINB} chances and partly below that.</Attr>
+      <Attr i={0} data="matches and solo" lines={[`Expected run-out chance, Easy opening on a clean table: ${[1,2,4,6,8].map(n=>`${n} ball${n>1?'s':''} ${pc(FIN.r**n)}`).join(', ')}`,`Hard opening: x${FIN.hard}. Problem table: x${FIN.problem}.`,`Weighted success rate: 0 at ${pc(FIN.lo)}, 100 at ${pc(FIN.hi)}, the level the expected chances are set at (about top pro)`]}>
+        How often you finish the rack, judged against how hard each chance was. Every chance has an expected run-out chance based on the balls on the table, the opening shot and the table. A run-out earns the part of that chance you were not expected to get, and a failure costs the expected chance, so finishing a long run earns a lot and missing a short one costs a lot. The first visit after your own break is not included. Scored once you have {MINF} chances.</Attr>
       <Attr i={1} data="Easy shots from matches and solo, Hard shots from matches" lines={[`Easy pot rate: ${rg(AN.pot)}`,`Hard make rate: ${rg(AN.hard)}`]}>
         How reliably you make shots. Mostly your pot rate on Easy openings, blended with your make rate on Hard openings. Hard shots take up to {pc(HARD.w)} of the score, reached at {HARD.n} attempts. Misses count against you and flukes do not count as makes.</Attr>
       <Attr i={2} data="matches and solo" lines={[`Position kept: ${rg(AN.pos)}`]}>

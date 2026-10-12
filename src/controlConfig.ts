@@ -3,5 +3,7 @@ export const EARLY={
   chances:30,    // Initiative: resolved chances
   safeties:10,   // Defence (S3): safeties with a resolved outcome
   hard:10,       // Hard shots (S3): attempts
+  easy:30,       // Easy shots: Easy openings (not safes)
+  table:10,      // Clean / Problem table cards: chances on that table
   leak:10        // How the initiative was lost: visits that lost the initiative needed before "Biggest leak" is named
 };

@@ -22,6 +22,11 @@ export function controlStats(pid:string,groups:Rec[][]){
       golden:L()},                                    // golden breaks (break records)
     rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}},       // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
     oth:L(),                                          // Easy-opening Missed/Foul visits whose cause is Other (or blank/legacy), whether or not they cost the initiative; matches only; shown, never scored
+    run:L(),                                          // Balls run (solo included): every chance visit (Easy/Hard opening), including the first visit after the player's own break; balls potted = d.potted.length
+    easy:{made:L(),miss:L(),lost:L(),kept:L(),pend:L(),safe:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // Easy shots (twin of Hard shots, matches only): first shot of each Easy opening; made = at least one ball potted; miss = none potted (lost/kept/pend = whether the opponent then got an easy shot); safe = played a safe instead
+    tbl:{                                             // table cards (matches only): chances (Easy/Hard opening) split by the visit's board state
+      clean:{won:L(),safe:{held:L(),easy:L(),pend:L()},miss:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}},
+      prob:{past:L(),safe:{held:L(),easy:L(),pend:L()},hit:L(),before:L(),reach:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}}, // prob: only visits with a problem ball still on the table; past = potted it or won the rack; safe = safe on or before it; hit = reached it and missed/fouled; before = missed/fouled before reaching it; reach = past + safe/miss that got as far as it
     ball:{made:0,pe:0,ok:0,pf:0},                     // rating only, solo included: per-ball counts over Easy-opening visits (made = balls potted minus flukes, pe = pot errors, ok/pf = position kept/failed)
     escA:{made:L(),fail:L()}                          // rating only: No-shot escape attempts, solo included (c.esc is matches only)
   };
@@ -48,6 +53,7 @@ export function controlStats(pid:string,groups:Rec[][]){
       const chance=CH.includes(d.open),mf=MISS.includes(d.res);
       // Finishing: chance visits by starting table size; the first visit after the player's own (non-skipped) break is break-and-run territory, so left out
       const pv=it[i-1],afterOwn=pv&&pv.kind==='break'&&pv.e.d.rack===d.rack&&pv.e.d.by===d.by&&!pv.e.d.skip&&!pv.e.d.nine;
+      if(chance)c.run.push(e);
       if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e);c.fin.ch.push({e,n:x.start.length})}
       if(d.open==='Easy'){const m=Math.max(0,d.potted.length-(d.fl?.length||0)),pe=mf&&d.cause==='Pot'?1:0,b=c.ball;b.made+=m;b.pe+=pe;b.ok+=Math.max(0,m-1)+(m>0&&pe?1:0);b.pf+=mf&&d.cause==='Position'?1:0}
       // No-shot visits: made = Escape hit, rack won, or any ball potted (even if it then missed/fouled); failed = Missed/Foul with nothing potted; Safe played is neither
@@ -55,6 +61,14 @@ export function controlStats(pid:string,groups:Rec[][]){
       if(es>=0)(es?c.escA.made:c.escA.fail).push(e);
       if(solo)return;   // everything below needs an opponent
       if(d.open==='Easy'&&mf&&!UF.includes(d.cause))c.oth.push(e);
+      if(chance){   // table cards: how the chance went on a Clean table, and what happened to the problem ball on a Problem table
+        const sres=(!n||!['Easy','Hard','None'].includes(no)?'pend':(no==='Easy'||n.won)?'easy':'held') as 'easy'|'held'|'pend',cau=(CAU.includes(d.cause)?d.cause:'Other') as 'Pot',pot:number[]=d.potted||[],st:number[]|null=Array.isArray(x.start)&&typeof x.start[0]==='number'?x.start:null;
+        if(d.board!=='Problem'){const T=c.tbl.clean;
+          if(d.won)T.won.push(e);else if(d.res==='Safe played')T.safe[sres].push(e);else if(mf){T.miss.push(e);T.cause[cau].push(e)}}
+        else{const T=c.tbl.prob,pr:number[]=(d.prob||[]).filter((b:number)=>!st||st.includes(b)),p0=pr.length?Math.min(...pr):0;   // p0 = lowest problem ball still on the table at the start
+          if(p0){const got=!!d.won||pot.includes(p0),rem=st?st.filter(b=>!pot.includes(b)):[],low=st?(rem.length?Math.min(...rem):0):d.low,reach=got||low===p0;
+            if(got)T.past.push(e);else if(d.res==='Safe played')T.safe[sres].push(e);else if(mf){if(reach){T.hit.push(e);T.cause[cau].push(e)}else T.before.push(e)}
+            if(got||(reach&&(d.res==='Safe played'||mf)))T.reach.push(e)}}}
       if(chance){
         if(d.won)c.ctl.won.push(e);
         else if(!['Easy','Hard','None'].includes(no))c.ctl.pend.push(e);
@@ -73,6 +87,12 @@ export function controlStats(pid:string,groups:Rec[][]){
         else if(no==='None'){const r=n.res,pt=n.potted?.length>0;if(r==='Safe played')s.cont.push(e);else if(r==='Escape hit'||(pt&&(r==='Missed'||r==='Foul')))s.esc.push(e);else if(r==='Missed')s.miss.push(e);else if(r==='Foul')s.foul.push(e);else s.pend.push(e)}
         else s.pend.push(e)}
       if(es>=0)(es?c.esc.made:c.esc.fail).push(e);
+      if(d.open==='Easy'){const E=c.easy;
+        if(d.res==='Safe played')E.safe.push(e);
+        else if(d.res!=='Escape hit'){
+          if(d.potted.length>=1)E.made.push(e);
+          else{E.miss.push(e);E.cause[(CAU.includes(d.cause)?d.cause:'Other') as 'Pot'].push(e);
+            if(no==='Easy')E.lost.push(e);else if(no==='Hard'||no==='None')E.kept.push(e);else E.pend.push(e)}}}
       if(d.open==='Hard'&&!['Safe played','Escape hit'].includes(d.res)){
         const h=c.hard;
         if(d.potted.length>=1)h.made.push(e);

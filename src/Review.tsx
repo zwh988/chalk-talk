@@ -12,7 +12,7 @@ import Avatar from './Avatar';
 import {periods,ppDelta,N as PN} from './delta';
 const pc=(w:number,n:number)=>n?Math.round(w/n*100):0;
 // Change vs the previous 4 sessions. Arrow = direction the number moved; green = better, red = worse (`low` = lower is better).
-const Dlt=({d,pp,low}:any)=>{if(d==null)return null;const r=pp?Math.round(d*10)/10:Math.round(d);if(!r)return <span className="n" style={{marginLeft:6}}>±0{pp?' pp':''}</span>;return <span style={{marginLeft:6,fontSize:13,fontWeight:700,whiteSpace:'nowrap',color:(low?r<0:r>0)?'var(--good)':'var(--bad)'}}>{r>0?'↑':'↓'}{pp?Math.abs(r).toFixed(1)+' pp':Math.abs(r)}</span>};
+const Dlt=({d,pp,low,dec}:any)=>{if(d==null)return null;const r=pp||dec?Math.round(d*10)/10:Math.round(d);if(!r)return <span className="n" style={{marginLeft:6}}>±0{pp?' pp':''}</span>;return <span style={{marginLeft:6,fontSize:13,fontWeight:700,whiteSpace:'nowrap',color:(low?r<0:r>0)?'var(--good)':'var(--bad)'}}>{r>0?'↑':'↓'}{pp?Math.abs(r).toFixed(1)+' pp':dec?Math.abs(r).toFixed(1):Math.abs(r)}</span>};
 const Donut=({w,n,label,d,low}:any)=>{const p=n?w/n:0,r=34,c=2*Math.PI*r;return <div style={{textAlign:'center',opacity:n<5?.45:1}}><svg viewBox="0 0 90 90" width="96"><circle cx="45" cy="45" r={r} fill="none" stroke="var(--chip)" strokeWidth="11"/><circle cx="45" cy="45" r={r} fill="none" stroke="var(--cloth)" strokeWidth="11" strokeLinecap="round" strokeDasharray={`${p*c} ${c}`} transform="rotate(-90 45 45)"/><text x="45" y="50" textAnchor="middle" fontSize="17" fontWeight="800" fill="var(--ink)">{n?Math.round(p*100)+'%':'—'}</text></svg><div className="n">{label}<br/>{w}/{n}{d!=null&&<><br/><Dlt d={d} pp low={low}/></>}</div></div>};
 const Cols=({vals,labels}:any)=>{const m=Math.max(1,...vals),W=300/vals.length;return <svg viewBox="0 0 300 112" style={{width:'100%',maxWidth:480,display:'block',margin:'auto'}}>{vals.map((v:number,i:number)=><g key={i}><rect x={i*W+6} y={84-v/m*66} width={W-12} height={v/m*66} rx="3" fill="var(--cloth)"/><text x={i*W+W/2} y="104" textAnchor="middle" fontSize="12" fill="var(--mute)">{labels[i]}</text>{v>0&&<text x={i*W+W/2} y={80-v/m*66} textAnchor="middle" fontSize="12" fill="var(--ink)">{v}</text>}</g>)}</svg>};
 const RC=140,CX=152,CY=158;   // radar radius and centre; the viewBox below is cropped to the graph plus its labels
@@ -33,11 +33,12 @@ const Rank=({r,prov}:{r:string;prov?:boolean})=><div role="img" aria-label={'Ran
 const Er=()=><span className="er">Early read</span>;
 const act=(f:()=>any)=>({role:'button',tabIndex:0,onClick:f,onKeyDown:(e:any)=>{if(e.key==='Enter')f()}});
 const Rw=({l,v,w,c,dim,sw,on}:any)=><div className={'rw'+(dim?' dim':'')+(on?' t':'')} {...(on?act(on):{})}><div className="rt"><span>{sw&&<i className="sw" style={{background:c}}/>}{l}</span><span className="rv"><b>{v}</b>{on&&<span className="chev">›</span>}</span></div><div className="rb"><i style={{width:Math.round(w*100)+'%',background:c}}/></div></div>;
-const KC='color-mix(in srgb,var(--good) 45%,var(--panel))',HC='color-mix(in srgb,var(--warn) 55%,var(--panel))',NC='color-mix(in srgb,var(--mute) 35%,var(--panel))';   // segment colours differ in lightness, not just hue
+const BL='color-mix(in srgb,var(--bad) 50%,var(--panel))',KC='color-mix(in srgb,var(--good) 45%,var(--panel))',HC='color-mix(in srgb,var(--warn) 55%,var(--panel))',NC='color-mix(in srgb,var(--mute) 35%,var(--panel))';   // segment colours differ in lightness, not just hue
 function ControlCards({cs,ws,op}:any){
   const C=cs.ctl,w=C.won.length,k=C.kept.length,g=C.gave.length,tot=w+k+g,kc=w+k,Lo=cs.lost,ke=cs.keptErr.length,ot=cs.oth.length,R=cs.rack;
   const rows:[string,any[],string,string][]=[['Position error',Lo.pos,'var(--bad)','Position errors'],['Potting error',Lo.pot,'var(--bad)','Potting errors'],['Decision error',Lo.dec,'var(--bad)','Decision errors'],['Safety left an easy shot',Lo.safe,'var(--warn)','Safeties that left an easy shot'],['Hard shot missed, left an easy one',Lo.hard,'var(--warn)','Hard shots missed that left an easy one'],['Other miss',Lo.other,'var(--mute)','']];
-  const cseg:[number,string,string,any[]][]=[[w,'var(--good)','Won the rack',C.won],[k,KC,'Held the initiative',C.kept],[g,'var(--bad)','Lost the initiative',C.gave]];
+  const kclean=C.kept.filter((x:Rec)=>!cs.keptErr.includes(x)),kz=[['Potting','Pot'],['Position','Position'],['Decision','Decision']].map(([l,k])=>l+' '+cs.keptErr.filter((x:Rec)=>x.d.cause===k).length).join(' · ');   // held = no error + held after an error that did not cost the initiative
+  const cseg:[number,string,string,any[]][]=[[w,'var(--good)','Won the rack',C.won],[k-ke,KC,'Held, no error',kclean],[ke,HC,'Held after an error',cs.keptErr],[g,'var(--bad)','Lost the initiative',C.gave]];
   const bg=rows.slice(0,5).reduce((a,r)=>r[1].length>a[1].length?r:a);
   const tile=(l:string,r:any)=>{const n=r.n.length,v=r.w.length;return <div {...(n?{className:'t',...act(()=>op(l,r.n,'racks',(e:Rec)=>r.w.includes(e)?'Won':'Lost'))}:{})}><div className="n">{l}</div><b>{n?Math.round(v/n*100)+'%':'—'}</b><div className="n">{n?v+' of '+n:'No racks yet'}</div>{n>0&&<span className="chev">›</span>}</div>};
   return <>
@@ -45,7 +46,8 @@ function ControlCards({cs,ws,op}:any){
       {tot?<><div className="big">{Math.round(kc/tot*100)}% <span className="n">of chances</span></div>
         <div className="n" style={{margin:'2px 0 10px'}}>You held the initiative on {kc} of your {tot} chances.</div>
         <div className="stk">{cseg.map(([n,c,t,a])=>n>0&&<i key={t} className="t" aria-label={t+' '+n} {...act(()=>op(t,a))} style={{width:n/tot*100+'%',background:c}}/>)}</div>
-        <div className="lg">{cseg.map(([n,c,t,a])=><span key={t} className="t" {...act(()=>a.length&&op(t,a))}><i style={{background:c}}/>{t} {n}</span>)}</div></>
+        <div className="lg">{cseg.map(([n,c,t,a])=><span key={t} className="t" {...act(()=>a.length&&op(t,a))}><i style={{background:c}}/>{t} {n}</span>)}</div>
+        {ke>0&&<div className="n" style={{marginTop:6}}>Held after an error: {kz}</div>}</>
         :<div className="n">No resolved chances yet.</div>}
       {C.pend.length>0&&<div className="n">{C.pend.length} more not counted yet (no next visit)</div>}
       <div className="tl">{tile('Racks won as breaker',R.brk)}{tile('Racks won as receiver',R.rcv)}</div></div>
@@ -53,7 +55,6 @@ function ControlCards({cs,ws,op}:any){
       {g>0?<>{g>=EARLY.leak&&bg[1].length>0&&<div className="tk">Biggest leak: {bg[3]}, {bg[1].length} of {g}</div>}
         <div className="rws">{rows.map(([l,a,c])=><Rw key={l} l={l} v={a.length} w={a.length/g} c={c} dim={g<5} on={a.length?()=>op(l,a):undefined}/>)}</div></>
         :<div className="n">You haven't lost the initiative on a chance yet.</div>}
-      {ke>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op("Errors that didn't cost the initiative",cs.keptErr)}>{ke} more error{ke===1?'':'s'} didn't cost you the initiative ›</button></div>}
       {ot>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op('Easy-shot misses logged as Other (not scored)',cs.oth)}>{ot} easy-shot miss{ot===1?'':'es'} logged as Other, not scored ›</button></div>}</div>}
   </>}
 // S3 blocks. Finishing includes solo; Defence and Hard shots are opponent-based (matches only).
@@ -84,11 +85,48 @@ function HardCard({cs,ws,op}:any){
       {pd>0&&<div className="n">{pd} more miss{pd===1?'':'es'} not sorted yet (no next visit)</div>}
       {ms>0&&<div className="n">Misses by cause: {cz.map(([l,a])=>l+' '+a.length).join(' · ')}</div>}</>
       :<div className="n">No hard shots logged yet.</div>}</div>}
+const cz=(K:any)=>[['Potting',K.Pot],['Position',K.Position],['Decision',K.Decision],['Other',K.Other]].map(([l,a]:any)=>l+' '+a.length).join(' · ');
+// Easy shots: twin of Hard shots (first shot of each Easy opening). Matches only.
+function EasyCard({cs,ws,op}:any){
+  const E=cs.easy,m=E.made.length,ms=E.miss.length,at=m+ms,lo=E.lost.length,kp=E.kept.length,pd=E.pend.length,sf=E.safe.length;
+  return <div className="card"><CH t="Easy shots" sub={<>{ws}{at<EARLY.easy&&<Er/>}</>}/>
+    {at?<><div className="rws"><Rw l="Made" v={m+' of '+at} w={m/at} c="var(--cloth)" dim={at<5} on={()=>op('Easy shots',[...E.made,...E.miss],'visits',(x:Rec)=>E.made.includes(x)?'Made':'Missed')}/>
+      <Rw l="Missed, opponent got an easy shot" v={lo} w={ms?lo/ms:0} c="var(--bad)" dim={at<5} on={lo?()=>op('Easy shot missed, opponent got an easy shot',E.lost):undefined}/>
+      <Rw l="Missed, no easy shot given up" v={kp} w={ms?kp/ms:0} c="var(--mute)" dim={at<5} on={kp?()=>op('Easy shot missed, no easy shot given up',E.kept):undefined}/></div>
+      {pd>0&&<div className="n">{pd} more miss{pd===1?'':'es'} not sorted yet (no next visit)</div>}
+      {ms>0&&<div className="n">Misses by cause: {cz(E.cause)}</div>}</>
+      :<div className="n">No easy shots logged yet.</div>}
+    <div className="n">The first shot of each Easy opening. Made = at least one ball potted.</div>
+    {sf>0&&<div className="n"><button className="link" style={{font:'inherit',padding:0}} onClick={()=>op('Safe played on an Easy opening',E.safe)}>Played a safe instead: {sf} ›</button></div>}</div>}
+// Clean / Problem table: chances split by the board state logged on the visit. Matches only.
+function CleanCard({cs,ws,op}:any){
+  const T=cs.tbl.clean,w=T.won.length,sh=T.safe.held.length,se=T.safe.easy.length,sp=T.safe.pend.length,sf=sh+se+sp,ms=T.miss.length,tot=w+sf+ms;
+  return <div className="card"><CH t="Clean table" sub={<>{ws}{tot<EARLY.table&&<Er/>}</>}/>
+    {tot?<><div className="n" style={{margin:'0 0 8px'}}>How your {tot} chances went when no ball was a problem.</div>
+      <div className="rws"><Rw l="Won the rack" v={w} w={w/tot} c="var(--good)" dim={tot<5} on={w?()=>op('Clean table, won the rack',T.won):undefined}/>
+        <Rw l="Played a safe" v={sf} w={sf/tot} c={NC} dim={tot<5} on={sf?()=>op('Clean table, played a safe',[...T.safe.held,...T.safe.easy,...T.safe.pend],'safeties',(x:Rec)=>T.safe.held.includes(x)?'Held':T.safe.easy.includes(x)?'Left an easy shot':'Not sorted yet'):undefined}/>
+        <Rw l="Missed or fouled" v={ms} w={ms/tot} c="var(--bad)" dim={tot<5} on={ms?()=>op('Clean table, missed or fouled',T.miss,'visits',(x:Rec)=>x.d.cause||'Other'):undefined}/></div>
+      {sf>0&&<div className="n">Safes: held {sh} · left an easy shot {se}{sp>0?' · not sorted yet '+sp:''}</div>}
+      {ms>0&&<div className="n">Misses by cause: {cz(T.cause)}</div>}</>
+      :<div className="n">No chances on a clean table yet.</div>}</div>}
+function ProblemCard({cs,ws,op}:any){
+  const T=cs.tbl.prob,ps=T.past.length,sh=T.safe.held.length,se=T.safe.easy.length,sp=T.safe.pend.length,sf=sh+se+sp,hi=T.hit.length,bf=T.before.length,tot=ps+sf+hi+bf,rc=T.reach.length;
+  return <div className="card"><CH t="Problem table" sub={<>{ws}{tot<EARLY.table&&<Er/>}</>}/>
+    {tot?<><div className="big">{Math.round(rc/tot*100)}% <span className="n">reached the problem ball</span></div>
+      <div className="n" style={{margin:'2px 0 10px'}}>You got to it on {rc} of your {tot} chances.</div>
+      <div className="rws"><Rw l="Got past it" v={ps} w={ps/tot} c="var(--good)" dim={tot<5} on={ps?()=>op('Problem table, got past the problem ball',T.past):undefined}/>
+        <Rw l="Played a safe, on or before it" v={sf} w={sf/tot} c={NC} dim={tot<5} on={sf?()=>op('Problem table, played a safe',[...T.safe.held,...T.safe.easy,...T.safe.pend],'safeties',(x:Rec)=>T.safe.held.includes(x)?'Held':T.safe.easy.includes(x)?'Left an easy shot':'Not sorted yet'):undefined}/>
+        <Rw l="Reached it, missed or fouled" v={hi} w={hi/tot} c="var(--bad)" dim={tot<5} on={hi?()=>op('Problem table, reached it and missed',T.hit,'visits',(x:Rec)=>x.d.cause||'Other'):undefined}/>
+        <Rw l="Missed before reaching it" v={bf} w={bf/tot} c={BL} dim={tot<5} on={bf?()=>op('Problem table, missed before reaching it',T.before,'visits',(x:Rec)=>x.d.cause||'Other'):undefined}/></div>
+      {sf>0&&<div className="n">Safes: held {sh} · left an easy shot {se}{sp>0?' · not sorted yet '+sp:''}</div>}
+      {hi>0&&<div className="n">Misses at it by cause: {cz(T.cause)}</div>}</>
+      :<div className="n">No chances with a problem ball yet.</div>}
+    <div className="n">Reached = every lower ball cleared and the problem ball was next to shoot at.</div></div>}
 export default function Stats({kind}:{kind:string}){
   const pa=useLiveQuery(()=>ofType('player'),[])||[],ps=pa.filter(p=>!p.d.archived);
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
   const all=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del).toArray(),[])||[];
-  const [pid,setPid]=useState(''),[win,setWin]=useState('4'),[cmp,setCmp]=useState(''),[typ,setTyp]=useState('all'),[tc,setTc]=useState<any>(null);
+  const [pid,setPid]=useState(''),[win,setWin]=useState('all'),[cmp,setCmp]=useState(''),[typ,setTyp]=useState('all'),[tc,setTc]=useState<any>(null);
   if(!ps.length)return <p className="n">Add players and log a session first.</p>;
   const sel=pid||ps[0].id,me=ps.find(p=>p.id===sel),nm=(id:string)=>pa.find(p=>p.id===(id||'').split('~')[0])?.d.name||'Unknown';
   // Tap to trace: opens a sheet with the records behind a number (newest first); `tag` adds a small label per record.
@@ -103,7 +141,10 @@ export default function Stats({kind}:{kind:string}){
   const at=attrs(sel,mine),R=rating(at),cf=confidence(at),pg=progress(R),ca=cmp?attrs(cmp,gr(cmp)):null;
   const cur=attrs(sel,mine.slice(0,4)),prev=attrs(sel,mine.slice(4,8));
   // Recent change: completed sessions only (newest first), latest 4 vs the 4 before; stats are recomputed over each combined period.
-  const dn=gr(sel,true),per=periods(dn),sc=per&&s?playerStats(sel,per.cur):null,sp=per&&s?playerStats(sel,per.prev):null,bc=per&&b?breakStats(sel,per.cur):null,bp=per&&b?breakStats(sel,per.prev):null;
+  const dn=gr(sel,true),per=periods(dn),bc=per&&b?breakStats(sel,per.cur):null,bp=per&&b?breakStats(sel,per.prev):null;
+  // Balls run: average balls potted per chance visit (controlStats.run), bars use the same strata as Finishing; the change arrow needs 5+ visits on both sides
+  const rn:number[]=cs?cs.run.map((e:Rec)=>e.d.potted.length):[],av=rn.length?rn.reduce((a:number,v:number)=>a+v,0)/rn.length:null,bins=[rn.filter(v=>v===0).length,rn.filter(v=>v>=1&&v<=2).length,rn.filter(v=>v>=3&&v<=5).length,rn.filter(v=>v>=6).length];
+  const rav=(c:any)=>c&&c.run.length>=5?c.run.reduce((a:number,e:Rec)=>a+e.d.potted.length,0)/c.run.length:null,ra=per&&s?rav(controlStats(sel,per.cur)):null,rb=per&&s?rav(controlStats(sel,per.prev)):null;
   const dR=(()=>{if(!per||!s)return null;const a=attrs(sel,per.cur),p=attrs(sel,per.prev),m=a.map((x,i)=>x.n>0&&p[i].n>0);return m.some(Boolean)?rating(a,m)-rating(p,m):null})(),dd=(c:any,p:any,f:(x:any)=>number[])=>c&&p?ppDelta(f(c),f(p)):null;
   // Rank is provisional until confidence reaches the top of the Medium band; "Work on" = lowest-scoring attribute with at least half its provisional sample (needs two to compare).
   const pv=cf<CONF[1][0],wk=(()=>{const c=at.map((x,i)=>({i,x})).filter(o=>o.x.n>=PROV[o.i]/2);return c.length>=2?c.reduce((a,o)=>o.x.adj<a.x.adj?o:a):null})(),cn=ps.find(p=>p.id===cmp)?.d.name;
@@ -126,9 +167,9 @@ export default function Stats({kind}:{kind:string}){
         {ATTRS.map((n,i)=><div key={n} style={{margin:'10px 0'}}><div className="srow" style={{border:0,padding:0}}><span>{n}<span className="n"> · {words(at[i].n,UNIT[i])}</span>{at[i].prov&&<span className="n"> · provisional</span>}</span><span><b>{at[i].n?Math.round(at[i].adj):'–'}</b> <span className="n">{tr(i)==null?'–':tr(i)!>0?'▲'+tr(i):tr(i)!<0?'▼'+Math.abs(tr(i)!):'–'}</span></span></div><div className="bar"><i style={{width:(at[i].n?at[i].adj:0)+'%'}}/></div></div>)}<div className="n">▲▼ = change vs the 4 sessions before · – = not enough data to compare</div></div>
       {cs&&cs.m>0&&<ControlCards cs={cs} ws={ws} op={op}/>}
       {cs&&<FinishCard cs={cs} ws={ws} op={op}/>}
-      {cs&&cs.m>0&&<><DefenceCard cs={cs} ws={ws} op={op}/><HardCard cs={cs} ws={ws} op={op}/></>}
+      {cs&&cs.m>0&&<><DefenceCard cs={cs} ws={ws} op={op}/><EasyCard cs={cs} ws={ws} op={op}/><HardCard cs={cs} ws={ws} op={op}/><CleanCard cs={cs} ws={ws} op={op}/><ProblemCard cs={cs} ws={ws} op={op}/></>}
       <div className="mh"><span>More detail</span></div>
-      <div className="card"><CH t="Balls run" sub={ws}/><div className="row" style={{justifyContent:'center'}}><Donut w={s.potted} n={s.onTable} label="conversion" d={dd(sc,sp,x=>[x.potted,x.onTable])}/></div><div className="n" style={{textAlign:'center'}}>Balls potted per chance visit</div><Cols vals={s.dist} labels={['0','1–2','3–4','5+']}/></div>
+      <div className="card"><CH t="Balls run" sub={ws}/><div className={rn.length<5?'dim':''}><div className="big">{av==null?'—':av.toFixed(1)} <span className="n">balls per chance visit</span>{ra!=null&&rb!=null&&<Dlt d={ra-rb} dec/>}</div><div className="n" style={{margin:'2px 0 8px'}}>Average balls potted over your {rn.length} chance visits. The bars count visits that potted 0, 1–2, 3–5 or 6+.</div><Cols vals={bins} labels={['0','1–2','3–5','6+']}/></div></div>
       <div className="card"><CH t="Lowest ball left after a miss" sub={ws}/><div className={ms<5?'dim':''}><Cols vals={s.low.slice(1)} labels={[1,2,3,4,5,6,7,8,9]}/></div><div className="n" style={{textAlign:'center'}}>{ms} misses · by ball number</div></div></>}
     {b&&<>
       <div className="card"><CH t="Break summary" sub={ws}/><div className="row" style={{justifyContent:'space-around'}}><Donut w={b.one} n={b.n} label="1-ball pocketed" d={dd(bc,bp,x=>[x.one,x.n])}/><Donut w={b.scratch} n={b.n} label="scratch" low d={dd(bc,bp,x=>[x.scratch,x.n])}/><Donut w={b.golden} n={b.n} label="golden" d={dd(bc,bp,x=>[x.golden,x.n])}/></div><div className="n" style={{textAlign:'center',marginTop:6}}>{b.n} breaks · {b.n?(b.drops/b.n).toFixed(2):'—'} balls dropped each</div></div>

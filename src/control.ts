@@ -14,7 +14,7 @@ export function controlStats(pid:string,groups:Rec[][]){
     keptErr:L(),                                      // 3.3 footnote: Easy-open Pot/Position/Decision misses that did not cost the initiative
     safe:{easy:L(),hard:L(),cont:L(),esc:L(),miss:L(),foul:L(),pend:L()}, // 3.4: graded by the opponent's next visit
     esc:{made:L(),fail:L()},                          // 3.5: No-shot escape attempts
-    hard:{made:L(),miss:L(),easy:L(),none:L(),pend:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // 3.6 (miss = 0 potted; easy/none/pend split the misses)
+    hard:{made:L(),miss:L(),easy:L(),none:L(),pend:L(),safe:L(),esc:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // 3.6 (miss = 0 potted; easy/none/pend split the misses)
     fin:{                                             // 3.7 (solo included)
       len:[{n:L(),ro:L()},{n:L(),ro:L()},{n:L(),ro:L()}], // chance visits by balls on the table at the start: 6+, 3–5, 1–2 (n = attempts, ro = ran out); first visit after own break excluded
       ch:[] as {e:Rec;n:number}[],                   // the same chance visits one by one as {e, n = balls on the table at the start}; the rating weights each by its difficulty
@@ -22,8 +22,9 @@ export function controlStats(pid:string,groups:Rec[][]){
       golden:L()},                                    // golden breaks (break records)
     rack:{brk:{n:L(),w:L()},rcv:{n:L(),w:L()}},       // 3.8: break records of completed racks as breaker / receiver (w = won by the player)
     oth:L(),                                          // Easy-opening Missed/Foul visits whose cause is Other (or blank/legacy), whether or not they cost the initiative; matches only; shown, never scored
+    soloRun:L(),                                      // the subset of `run` that came from solo sessions (Balls run line)
     run:L(),                                          // Balls run (solo included): every chance visit (Easy/Hard opening), including the first visit after the player's own break; balls potted = d.potted.length
-    easy:{made:L(),miss:L(),lost:L(),kept:L(),pend:L(),safe:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // Easy shots (twin of Hard shots, matches only): first shot of each Easy opening; made = at least one ball potted; miss = none potted (lost/kept/pend = whether the opponent then got an easy shot); safe = played a safe instead
+    easy:{made:L(),miss:L(),lost:L(),kept:L(),pend:L(),safe:L(),esc:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}, // Easy shots (twin of Hard shots, matches only): first shot of each Easy opening; made = at least one ball potted; miss = none potted (lost/kept/pend = whether the opponent then got an easy shot); safe = played a safe instead
     tbl:{                                             // table cards (matches only): chances (Easy/Hard opening) split by the visit's board state
       clean:{won:L(),safe:{held:L(),easy:L(),pend:L()},miss:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}},
       prob:{past:L(),safe:{held:L(),easy:L(),pend:L()},hit:L(),before:L(),reach:L(),cause:{Pot:L(),Position:L(),Decision:L(),Other:L()}}}, // prob: only visits with a problem ball still on the table; past = potted it or won the rack; safe = safe on or before it; hit = reached it and missed/fouled; before = missed/fouled before reaching it; reach = past + safe/miss that got as far as it
@@ -53,7 +54,7 @@ export function controlStats(pid:string,groups:Rec[][]){
       const chance=CH.includes(d.open),mf=MISS.includes(d.res);
       // Finishing: chance visits by starting table size; the first visit after the player's own (non-skipped) break is break-and-run territory, so left out
       const pv=it[i-1],afterOwn=pv&&pv.kind==='break'&&pv.e.d.rack===d.rack&&pv.e.d.by===d.by&&!pv.e.d.skip&&!pv.e.d.nine;
-      if(chance)c.run.push(e);
+      if(chance){c.run.push(e);if(solo)c.soloRun.push(e)}
       if(chance&&!afterOwn){const g=c.fin.len[x.start.length>=6?0:x.start.length>=3?1:2];g.n.push(e);if(d.won&&d.runout)g.ro.push(e);c.fin.ch.push({e,n:x.start.length})}
       if(d.open==='Easy'){const m=Math.max(0,d.potted.length-(d.fl?.length||0)),pe=mf&&d.cause==='Pot'?1:0,b=c.ball;b.made+=m;b.pe+=pe;b.ok+=Math.max(0,m-1)+(m>0&&pe?1:0);b.pf+=mf&&d.cause==='Position'?1:0}
       // No-shot visits: made = Escape hit, rack won, or any ball potted (even if it then missed/fouled); failed = Missed/Foul with nothing potted; Safe played is neither
@@ -89,10 +90,12 @@ export function controlStats(pid:string,groups:Rec[][]){
       if(es>=0)(es?c.esc.made:c.esc.fail).push(e);
       if(d.open==='Easy'){const E=c.easy;
         if(d.res==='Safe played')E.safe.push(e);
-        else if(d.res!=='Escape hit'){
+        else if(d.res==='Escape hit')E.esc.push(e);
+        else{
           if(d.potted.length>=1)E.made.push(e);
           else{E.miss.push(e);E.cause[(CAU.includes(d.cause)?d.cause:'Other') as 'Pot'].push(e);
             if(no==='Easy')E.lost.push(e);else if(no==='Hard'||no==='None')E.kept.push(e);else E.pend.push(e)}}}
+      if(d.open==='Hard'&&['Safe played','Escape hit'].includes(d.res))(d.res==='Safe played'?c.hard.safe:c.hard.esc).push(e);   // not attempts, so outside made/miss (the rating's Hard make rate is unchanged)
       if(d.open==='Hard'&&!['Safe played','Escape hit'].includes(d.res)){
         const h=c.hard;
         if(d.potted.length>=1)h.made.push(e);

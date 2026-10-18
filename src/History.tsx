@@ -7,6 +7,7 @@ import {controlStats} from './control';
 import {Ln} from './Live';
 import Avatar from './Avatar';
 import {ask} from './ui';
+import {tdfOf} from './tdf';
 const bs=(id:string)=>id.split('~')[0];
 export default function History(){
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
@@ -56,9 +57,11 @@ function Summary({s,evs,pl,sn,st}:any){
 
 function EditSession({s,vs}:any){
   const [on,setOn]=useState(false),[name,setName]=useState(s.d.name||''),[vid,setVid]=useState(s.d.venueId||''),[tbl,setTbl]=useState(s.d.table||'');
+  const cv=vs.find((v:any)=>v.id===vid),tl=cv?.d.tables||[];
   if(!on)return <button className="ghost" style={{marginBottom:8}} onClick={()=>setOn(true)}>Edit details</button>;
   return <div className="card"><label>Session name<input value={name} onChange={e=>setName(e.target.value)}/></label>
     <label>Venue<select value={vid} onChange={e=>setVid(e.target.value)}><option value="">No venue</option>{vs.map((v:any)=><option key={v.id} value={v.id}>{v.d.name}</option>)}</select></label>
-    <label>Table number<input value={tbl} onChange={e=>setTbl(e.target.value)}/></label>
+    {tl.length?<label>Table<select value={tbl} onChange={e=>setTbl(e.target.value)}><option value="">No table</option>{tbl&&!tl.some((t:any)=>t.name===tbl)&&<option value={tbl}>{tbl}</option>}{tl.map((t:any)=><option key={t.name} value={t.name}>{t.name}</option>)}</select>{tdfOf(cv,tbl)!=null&&<span className="n">TDF {tdfOf(cv,tbl)!.toFixed(2)}</span>}</label>
+    :<label>Table number<input value={tbl} onChange={e=>setTbl(e.target.value)}/></label>}
     <div className="row"><button className="ghost" onClick={()=>setOn(false)}>Cancel</button><button className="go sm" style={{flex:1}} onClick={async()=>{await save('session',{...s.d,name:name.trim(),venueId:vid,venue:vid?(vs.find((v:any)=>v.id===vid)?.d.name??''):'',table:tbl},s.id);setOn(false)}}>Save</button></div></div>;
 }

@@ -10,6 +10,7 @@ import {Sheet} from './ui';
 import {attrs,rating,rankOf,progress,confidence,ATTRS,PROV,CONF} from './rating';
 import Avatar from './Avatar';
 import {periods,ppDelta,N as PN} from './delta';
+import {tdfOf} from './tdf';
 const pc=(w:number,n:number)=>n?Math.round(w/n*100):0;
 // Change vs the previous 4 sessions. Arrow = direction the number moved; green = better, red = worse (`low` = lower is better).
 const Dlt=({d,pp,low,dec}:any)=>{if(d==null)return null;const r=pp||dec?Math.round(d*10)/10:Math.round(d);if(!r)return <span className="n" style={{marginLeft:6}}>±0{pp?' pp':''}</span>;return <span style={{marginLeft:6,fontSize:13,fontWeight:700,whiteSpace:'nowrap',color:(low?r<0:r>0)?'var(--good)':'var(--bad)'}}>{r>0?'↑':'↓'}{pp?Math.abs(r).toFixed(1)+' pp':dec?Math.abs(r).toFixed(1):Math.abs(r)}</span>};
@@ -127,22 +128,23 @@ export default function Stats({kind}:{kind:string}){
   const pa=useLiveQuery(()=>ofType('player'),[])||[],ps=pa.filter(p=>!p.d.archived);
   const ss=(useLiveQuery(()=>ofType('session'),[])||[]).sort((a,b)=>b.d.start-a.d.start);
   const all=useLiveQuery(()=>db.recs.where('type').anyOf('break','visit').filter(r=>!r.del).toArray(),[])||[];
-  const [pid,setPid]=useState(''),[win,setWin]=useState('all'),[cmp,setCmp]=useState(''),[typ,setTyp]=useState('all'),[tc,setTc]=useState<any>(null);
+  const vn=useLiveQuery(()=>ofType('venue'),[])||[];
+  const [pid,setPid]=useState(''),[win,setWin]=useState('all'),[cmp,setCmp]=useState(''),[typ,setTyp]=useState('all'),[tc,setTc]=useState<any>(null),[pk,setPk]=useState<string[]>([]),[pp,setPp]=useState(false);
   if(!ps.length)return <p className="n">Add players and log a session first.</p>;
   const sel=pid||ps[0].id,me=ps.find(p=>p.id===sel),nm=(id:string)=>pa.find(p=>p.id===(id||'').split('~')[0])?.d.name||'Unknown';
   // Tap to trace: opens a sheet with the records behind a number (newest first); `tag` adds a small label per record.
   const op=(t:string,l:Rec[],u='visits',tag?:(e:Rec)=>string|undefined)=>setTc({t,u,it:[...l].sort((a:any,b:any)=>(b.d.t??b.u)-(a.d.t??a.u)).map(e=>({e,x:tag?tag(e):undefined}))});
   const gr=(id:string,dn?:boolean)=>ss.filter(s=>(typ==='all'||(typ==='solo')===!!s.d.solo)&&(!dn||s.d.end)&&s.d.players.includes(id)&&all.some(e=>e.d.s===s.id)).map(s=>all.filter(e=>e.d.s===s.id).sort((x:any,y:any)=>(x.d.t??x.u)-(y.d.t??y.u)));
-  const mine=gr(sel),groups=win==='all'?mine:mine.slice(0,4);
+  const mine=gr(sel),groups=win==='all'?mine:win==='pick'?mine.filter(g=>pk.includes(g[0].d.s)):mine.slice(0,4);
   // Scope labels: the rating always uses every session of the chosen type; the other cards follow the window.
-  const wd=typ==='match'?'match':typ==='solo'?'solo session':'session',pl=(n:number)=>n+' '+wd+(n===1?'':typ==='match'?'es':'s'),rs='All '+pl(mine.length),ws=win==='all'?rs:groups.length===1?'Last '+wd:'Last '+pl(groups.length);
+  const wd=typ==='match'?'match':typ==='solo'?'solo session':'session',pl=(n:number)=>n+' '+wd+(n===1?'':typ==='match'?'es':'s'),rs='All '+pl(mine.length),one=(id:string)=>{const q=ss.find(x=>x.id===id);return q?new Date(q.d.start).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})+(q.d.venue?' · '+q.d.venue:''):'1 '+wd},ws=win==='all'?rs:win==='pick'?(groups.length===1?one(groups[0][0].d.s):pl(groups.length)+' selected'):groups.length===1?'Last '+wd:'Last '+pl(groups.length);
   const s=kind==='players'?playerStats(sel,groups):null,b=kind==='breaks'?breakStats(sel,groups):null;
   const ms=s?s.low.reduce((a:number,x:number)=>a+x,0):0,cs=s?controlStats(sel,groups):null;
   const cnt=(o:any)=>`Easy ${o.Easy} · Hard ${o.Hard} · No shot ${o.None}`;
   const at=attrs(sel,mine),R=rating(at),cf=confidence(at),pg=progress(R),ca=cmp?attrs(cmp,gr(cmp)):null;
   const cur=attrs(sel,mine.slice(0,4)),prev=attrs(sel,mine.slice(4,8));
   // Recent change: completed sessions only (newest first), latest 4 vs the 4 before; stats are recomputed over each combined period.
-  const dn=gr(sel,true),per=periods(dn),bc=per&&b?breakStats(sel,per.cur):null,bp=per&&b?breakStats(sel,per.prev):null;
+  const dn=gr(sel,true),per=win==='pick'?null:periods(dn),bc=per&&b?breakStats(sel,per.cur):null,bp=per&&b?breakStats(sel,per.prev):null;
   // Balls run: average balls potted per chance visit (controlStats.run), bars use the same strata as Finishing; the change arrow needs 5+ visits on both sides
   const rn:number[]=cs?cs.run.map((e:Rec)=>e.d.potted.length):[],av=rn.length?rn.reduce((a:number,v:number)=>a+v,0)/rn.length:null,ne=cs?cs.run.filter((e:Rec)=>e.d.open==='Easy').length:0,nh=rn.length-ne,so=cs?cs.soloRun.length:0,bins=[rn.filter(v=>v===0).length,rn.filter(v=>v>=1&&v<=2).length,rn.filter(v=>v>=3&&v<=5).length,rn.filter(v=>v>=6).length];
   const rav=(c:any)=>c&&c.run.length>=5?c.run.reduce((a:number,e:Rec)=>a+e.d.potted.length,0)/c.run.length:null,ra=per&&s?rav(controlStats(sel,per.cur)):null,rb=per&&s?rav(controlStats(sel,per.prev)):null;
@@ -152,8 +154,13 @@ export default function Stats({kind}:{kind:string}){
   const tr=(i:number)=>prev[i].n>=PROV[i]/2&&cur[i].n>0?Math.round(cur[i].raw-prev[i].raw):null;
   return <>
     <div className="filt"><select aria-label="Player" value={sel} onChange={e=>setPid(e.target.value)}>{ps.map(p=><option key={p.id} value={p.id}>{p.d.name}</option>)}</select></div>
-    <div className="filt"><select aria-label="Window" value={win} onChange={e=>setWin(e.target.value)}><option value="4">Last 4 sessions</option><option value="all">All time</option></select><select aria-label="Session type" value={typ} onChange={e=>setTyp(e.target.value)}><option value="all">All types</option><option value="match">Matches only</option><option value="solo">Solo only</option></select></div>
-    <div className="n" style={{marginBottom:10}}>Faded = fewer than 5 observations{(s||b)&&<><br/>{per?'Arrows: latest 4 vs previous 4 completed sessions':`Trends unlock after ${2*PN} completed sessions (${2*PN-dn.length} more)`}</>}</div>
+    <div className="filt"><select aria-label="Window" value={win} onChange={e=>{setWin(e.target.value);if(e.target.value==='pick')setPp(true)}}><option value="4">Last 4 sessions</option><option value="all">All time</option><option value="pick">Pick sessions…</option></select><select aria-label="Session type" value={typ} onChange={e=>setTyp(e.target.value)}><option value="all">All types</option><option value="match">Matches only</option><option value="solo">Solo only</option></select></div>
+    {win==='pick'&&<div className="filt"><button className="ghost" style={{width:'100%'}} onClick={()=>setPp(true)}>{groups.length} of {mine.length} session{mine.length===1?'':'s'} picked · Change</button></div>}
+    <div className="n" style={{marginBottom:10}}>Faded = fewer than 5 observations{(s||b)&&<><br/>{per?'Arrows: latest 4 vs previous 4 completed sessions':win==='pick'?'Arrows are hidden for picked sessions':`Trends unlock after ${2*PN} completed sessions (${2*PN-dn.length} more)`}</>}</div>
+    {pp&&<Sheet onClose={()=>setPp(false)}><h2>Pick sessions</h2><div className="n">{groups.length} picked · {mine.length} available for {me?.d.name}</div>
+      <div className="tr">{mine.map(g=>{const id=g[0].d.s,q=ss.find(x=>x.id===id);if(!q)return null;const on=pk.includes(id),o2=q.d.solo?null:q.d.players.map((x:string)=>x.split('~')[0]).find((x:string)=>x!==sel),t=q.d.table?tdfOf(vn.find(v=>v.id===q.d.venueId),q.d.table):null;
+        return <label key={id} className="srow" style={{gap:10,alignItems:'center'}}><input type="checkbox" checked={on} onChange={()=>setPk(on?pk.filter(x=>x!==id):[...pk,id])}/><span style={{flex:1}}>{new Date(q.d.start).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}{q.d.name?' · '+q.d.name:''}<div className="n" style={{margin:0}}>{q.d.solo?'Solo':o2?'vs '+nm(o2):''}{q.d.venue?' · '+q.d.venue:''}{q.d.table?' · table '+q.d.table:''}{t!=null?' · TDF '+t.toFixed(2):''}{!q.d.end?' · in progress':''}</div></span></label>})}</div>
+      <div className="row" style={{marginTop:10}}><button className="ghost" onClick={()=>setPk([])}>Clear</button><button className="go sm" style={{flex:1}} onClick={()=>setPp(false)}>Done</button></div></Sheet>}
     {tc&&<Sheet onClose={()=>setTc(null)}><h2>{tc.t}</h2><div className="n">{tc.it.length} {tc.u} · {ws}</div>
       <div className="tr">{tc.it.map(({e,x}:any)=>{const se=ss.find(q=>q.id===e.d.s),op2=se&&!se.d.solo?se.d.players.map((id:string)=>id.split('~')[0]).find((id:string)=>id!==sel):null;
         return <div key={e.id}><div className="n">{se?new Date(se.d.start).toLocaleDateString(undefined,{day:'numeric',month:'short'}):'Session'}{se?.d.solo?' · Solo':op2?' · vs '+nm(op2):''} · Rack {e.d.rack}</div><Ln e={e} name={nm}/>{x&&<span className="tg">{x}</span>}</div>})}</div>
